@@ -1,7 +1,8 @@
 # Dinky
 
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg?style=socialflat-square&)](https://www.apache.org/licenses/LICENSE-2.0.html)
-[![Total Lines](https://img.shields.io/github/stars/DataLinkDC/dinky?style=socialflat-square&label=stars)](https://github.com/DataLinkDC/dinky/stargazers)
+[![Stars](https://img.shields.io/github/stars/DataLinkDC/dinky?style=socialflat-square&label=stars)](https://github.com/DataLinkDC/dinky/stargazers)
+[![Downloads](https://img.shields.io/github/downloads/DataLinkDC/dinky/total.svg)](https://github.com/DataLinkDC/dinky/releases)
 [![CN doc](https://img.shields.io/badge/文档-中文版-blue.svg?style=socialflat-square&)](README_zh_CN.md)
 [![EN doc](https://img.shields.io/badge/document-English-blue.svg?style=socialflat-square&)](README.md)
 
@@ -9,26 +10,23 @@
 
 ## Introduction
 
-Dinky is an out-of-the-box, one-stop, real-time computing platform dedicated to the construction and practice of Unified Streaming & Batch and Unified Data Lake & Data Warehouse. Based on Apache Flink, Dinky provides the ability to connect many big data frameworks including OLAP and Data Lake.
-
+An open-source real-time computing platform built with Apache Flink as its core, capable of real-time application job development, data debugging, and runtime monitoring, helping to facilitate efficient real-time computing applications.
 ## Feature
 
 Its main features are as follows:
 
-- Immersive Flink SQL Data Development: Dinky provides automatic prompt completion, syntax highlighting, statement beautification, online debugging, syntax verification, execution plan, MetaStore, lineage, version comparison, and more.
+- Immersive Flink SQL Data Development: Dinky provides prompt completion, statement beautification, online debugging, syntax verification, logic plan, catalog, lineage, version comparison, and more.
 - Support FlinkSQL multi-version development and execution modes: Dinky supports multiple development and execution modes for FlinkSQL, including Local, Standalone, Yarn/Kubernetes Session, Yarn Per-Job, and Yarn/Kubernetes Application.
-- Support FlinkSQL syntax enhancement: Dinky enhances FlinkSQL with features like database synchronization, execution environments, global variables, statement 
-  merging, table-valued aggregate functions, load dependency, and row-level permissions.
-- Supports real-time warehousing and lake entry of the entire FlinkCDC database, multi-database output, and automatic table creation.
-- Support SQL job development: You can develop SQL jobs for various databases, including ClickHouse, Doris, Hive, MySQL, Oracle, Phoenix, PostgreSQL, Presto, SQL Server, StarRocks, and more.
-- Support real-time online debugging:preview Table, ChangeLog, statistical chart and UDF.
+- Support Flink ecosystem: Connector, FlinkCEP, FlinkCDC, Paimon, PyFlink
+- Support FlinkSQL syntax enhancement: Dinky enhances FlinkSQL with features like database synchronization, execution environments, global variables, table-valued aggregate functions, load dependency, row-level permissions, and execute jar.
+- Support real-time warehousing and lake entry of the entire FlinkCDC database and FlinkCDC Pipeline task.
+- Support real-time online debugging: Preview Table, ChangeLog and UDF.
 - Support Flink Catalog, data source metadata online query and management.
-- Support real-time task operation and maintenance: Online and offline, job information, cluster information, job snapshot, exception information, data map, data exploration, historical version, alarm record, etc.
-- Support as multi-version FlinkSQL Server and OpenApi capability.
-- Support real-time job alarm and alarm group: DingTalk, WeChat, Feishu, E-mail, etc.
+- Support real-time task operation and maintenance: Online and offline, job information, job log, version info, job snapshot, monitor, sql lineage, alarm record, etc.
+- Support real-time job alarm and alarm group: DingTalk, WeChat, Feishu, E-mail, SMS, Http etc.
 - Support automatically managed SavePoint/CheckPoint recovery and triggering mechanisms: latest, earliest, specified, etc.
-- Support resource management: Cluster instance, cluster configuration, jar, data source, alarm group, alarm instance, document, global variable, system configuration, etc.
-- Support enterprise-level management: multi-tenant, user, role, project space.
+- Support resource management: Cluster instance, cluster configuration, data source, alarm, document, global variable, git project, UDF, resource, system configuration, etc.
+- Support enterprise-level management: multi-tenant, user, role, token.
 - More hidden features await exploration by our users.
 
 ## Principle
@@ -37,39 +35,26 @@ Its main features are as follows:
 
 ## Run the Screenshot
 
-> FlinkSQL Studio
+> Data Studio
 
-![datastudio](https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/070/datastudio.png)
+![datastudio](https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/v1-2/datastudio.png)
 
-> Grammar Check
+> Data Debug
 
-![checksql](https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/070/checksql.png)
+![datadebug](https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/v1-2/data-debug.png)
 
-> Version Management
+> Task Monitor
 
-![versiondiff](https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/070/versiondiff.png)
+![devops](https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/v1-2/devops.png)
 
-> lineage
+> Task Metrics
 
-![lineage](https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/070/lineage.png)
-
-> BI Charts
-
-![charts](https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/070/charts.png)
-
-> Metadata Query
-
-![metadata](https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/070/metadata.png)
-
-> Task Monitoring
-
-![monitor](https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/070/monitor.png)
-
-> Job Information
-
-![jobinfo](https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/070/jobinfo.png)
+![metrics](https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/v1-2/metrics.png)
 
 ## Participate in Contributions
+
+The dev branch is Dinky 1.3.0, and the 1.2 branch is Dinky 1.2.5.
+
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/DataLinkDC/dinky/pulls)
 
 Welcome to join the community, build a win-win situation, please refer to the contribution process： [How to contribute](https://github.com/DataLinkDC/dinky/blob/dev/docs/docs/developer_guide/contribution/how_contribute.md).
@@ -80,21 +65,7 @@ Thank you to all the people who already contributed to Dinky!
 
 ## How to Deploy
 
-- The dev branch is the 0.8 reconstructed version, which is still unstable.
-
-- The 0.7 branch is the current stable version. Please use this branch for compilation and debugging.
-
-See [source code compilation](https://github.com/DataLinkDC/dinky/blob/dev/docs/docs/deploy_guide/compile.mdx) and [installation and deployment](https://github.com/DataLinkDC/dinky/blob/dev/docs/docs/deploy_guide/deploy.mdx) for details.
-
-## How to Upgrade
-
-Due to the numerous functionalities, there are several bugs and optimization points that need attention.. It is strongly recommended to use or upgrade to the latest version.
-
-Upgrade steps:
-
-(1) Upgrade the app: Replace all dependencies of latest Dinky.
-
-(2) Upgrade the DDL: Execute the relevant version upgrade statements in the sql/upgrade directory, and execute them in the order of the version numbers.
+See [source code compilation](https://github.com/DataLinkDC/dinky/blob/dev/docs/docs/deploy_guide/compile_deploy.md) and [installation and deployment](https://github.com/DataLinkDC/dinky/blob/dev/docs/docs/deploy_guide/normal_deploy.mdx) for details.
 
 ## Thanks
 
@@ -104,9 +75,9 @@ Below is a partial list of acknowledgements:
 
 [Apache Flink](https://github.com/apache/flink)
 
-[FlinkCDC](https://github.com/ververica/flink-cdc-connectors)
+[Apache FlinkCDC](https://github.com/apache/flink-cdc)
 
-[Apache Flink Table Store](https://github.com/apache/flink-table-store)
+[Apache Paimon](https://github.com/apache/paimon)
 
 [Apache Dolphinscheduler](https://github.com/apache/dolphinscheduler)
 
@@ -134,22 +105,10 @@ Thanks to [JetBrains](https://www.jetbrains.com/?from=dlink) for providing a fre
 
 2.Visit the [official website](http://www.dinky.org.cn/#/) website to read the latest documentation manual.
 
-3.It is recommended to scan the code to enter the DingTalk group.
+3.Enter the WeChat user community group (recommended, add WeChat `wenmo_ai` to invite into the group) and QQ user community group (**543709668**) to communicate, and apply for the remarks "Dinky + company name + position".
 
-<img src="https://raw.githubusercontent.com/DataLinkDC/dinky/dev/images/main/dinkydingding.jpg" alt="dinkydingding" style="zoom:30%;" />
-
-4.Enter the WeChat user community group (recommended, add WeChat `wenmo_ai` to invite into the group) and QQ user community group (**543709668**) to communicate, and apply for the remarks "Dinky + company name + position".
-
-5.Follow the WeChat public account to get the latest official articles: [Dinky Open Source](https://mmbiz.qpic.cn/mmbiz_jpg/dyicwnSlTFTp6w4PuJruFaLV6uShCJDkzqwtnbQJrQ90yKDuuIC8tyMU5DK69XZibibx7EPPBRQ3ic81se5UQYs21g/0?wx_fmt=jpeg).
-
-6.Follow bilibili UP master (Shi Wen Mo A) to get the latest video teaching.
+4.Follow the WeChat public account to get the latest official articles: [Dinky Open Source](https://mmbiz.qpic.cn/mmbiz_jpg/dyicwnSlTFTp6w4PuJruFaLV6uShCJDkzqwtnbQJrQ90yKDuuIC8tyMU5DK69XZibibx7EPPBRQ3ic81se5UQYs21g/0?wx_fmt=jpeg).
 
 ## Copyright
 
 Please refer to the [LICENSE](https://github.com/DataLinkDC/dinky/blob/dev/LICENSE) document.
-
-# Contributors
-
-<a href="https://github.com/DataLinkDC/dinky/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=DataLinkDC/dinky" />
-</a>

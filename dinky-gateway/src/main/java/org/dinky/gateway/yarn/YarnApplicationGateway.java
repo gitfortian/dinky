@@ -20,35 +20,31 @@
 package org.dinky.gateway.yarn;
 
 import org.dinky.assertion.Asserts;
+import org.dinky.constant.CustomerConfigureOptions;
 import org.dinky.context.FlinkUdfPathContextHolder;
-import org.dinky.data.model.SystemConfiguration;
+import org.dinky.data.enums.GatewayType;
+import org.dinky.executor.ClusterDescriptorAdapterImpl;
 import org.dinky.gateway.config.AppConfig;
-import org.dinky.gateway.enums.GatewayType;
 import org.dinky.gateway.result.GatewayResult;
 import org.dinky.gateway.result.YarnResult;
-import org.dinky.utils.FlinkJsonUtil;
 import org.dinky.utils.LogUtil;
+import org.dinky.utils.URLUtils;
 
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
-import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ApplicationReport;
-import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import cn.hutool.http.HttpUtil;
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.URLUtil;
 
 /**
  * YarnApplicationGateway
@@ -62,14 +58,32 @@ public class YarnApplicationGateway extends YarnGateway {
         return GatewayType.YARN_APPLICATION;
     }
 
+    /**
+     * format url
+     * <p>if url is rs protocol, convert to file path</p>
+     *
+     * @param url url
+     * @return formatted url
+     */
+    private String formatUrl(String url) {
+        if (URLUtil.url(url).getProtocol().equals("rs")) {
+            return URLUtils.toFile(url).getAbsolutePath();
+        } else {
+            return url;
+        }
+    }
+
     @Override
     public GatewayResult submitJar(FlinkUdfPathContextHolder udfPathContextHolder) {
         if (Asserts.isNull(yarnClient)) {
             init();
         }
 
+        List<String> beforePipelineJars = configuration.get(PipelineOptions.JARS);
+
         AppConfig appConfig = config.getAppConfig();
-        configuration.set(PipelineOptions.JARS, Collections.singletonList(appConfig.getUserJarPath()));
+        configuration.set(PipelineOptions.JARS, Collections.singletonList(formatUrl(appConfig.getUserJarPath())));
+
         configuration.setString(
                 "python.files",
                 udfPathContextHolder.getPyUdfFile().stream().map(File::getName).collect(Collectors.joining(",")));
@@ -81,49 +95,24 @@ public class YarnApplicationGateway extends YarnGateway {
                 createClusterSpecificationBuilder();
         ApplicationConfiguration applicationConfiguration =
                 new ApplicationConfiguration(userJarParas, appConfig.getUserJarMainAppClass());
-
         YarnResult result = YarnResult.build(getType());
         String webUrl;
         try (YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptorWithJar(udfPathContextHolder)) {
+            ClusterDescriptorAdapterImpl clusterDescriptorAdapter =
+                    new ClusterDescriptorAdapterImpl(yarnClusterDescriptor);
+            if (CollUtil.isNotEmpty(beforePipelineJars)) {
+                clusterDescriptorAdapter.addShipFiles(
+                        beforePipelineJars.stream().map(URLUtils::toFile).collect(Collectors.toList()));
+            }
+            clusterDescriptorAdapter.addShipFiles(Collections.singletonList(preparSqlFile()));
+            addConfigParas(
+                    CustomerConfigureOptions.EXEC_SQL_FILE, configuration.get(CustomerConfigureOptions.EXEC_SQL_FILE));
+
             ClusterClientProvider<ApplicationId> clusterClientProvider = yarnClusterDescriptor.deployApplicationCluster(
                     clusterSpecificationBuilder.createClusterSpecification(), applicationConfiguration);
             ClusterClient<ApplicationId> clusterClient = clusterClientProvider.getClusterClient();
 
-            int counts = SystemConfiguration.getInstances().getJobIdWait();
-            while (yarnClient.getApplicationReport(clusterClient.getClusterId()).getYarnApplicationState()
-                            == YarnApplicationState.ACCEPTED
-                    && counts-- > 0) {
-                Thread.sleep(1000);
-            }
-            ApplicationReport applicationReport = yarnClient.getApplicationReport(clusterClient.getClusterId());
-            if (applicationReport.getYarnApplicationState() != YarnApplicationState.RUNNING) {
-                throw new RuntimeException("Yarn application state is not running, please check yarn cluster status.");
-            }
-            webUrl = applicationReport.getOriginalTrackingUrl();
-            final List<JobDetails> jobDetailsList = new ArrayList<>();
-            while (jobDetailsList.isEmpty() && counts-- > 0) {
-                Thread.sleep(1000);
-
-                String url = yarnClient
-                                .getApplicationReport(clusterClient.getClusterId())
-                                .getTrackingUrl()
-                        + JobsOverviewHeaders.URL.substring(1);
-
-                String json = HttpUtil.get(url);
-                MultipleJobsDetails jobsDetails = FlinkJsonUtil.toBean(json, JobsOverviewHeaders.getInstance());
-                jobDetailsList.addAll(jobsDetails.getJobs());
-                if (!jobDetailsList.isEmpty()) {
-                    break;
-                }
-            }
-
-            if (!jobDetailsList.isEmpty()) {
-                List<String> jobIds = new ArrayList<>();
-                for (JobDetails jobDetails : jobDetailsList) {
-                    jobIds.add(jobDetails.getJobId().toHexString());
-                }
-                result.setJids(jobIds);
-            }
+            webUrl = getWebUrl(clusterClient, result);
 
             ApplicationId applicationId = clusterClient.getClusterId();
             result.setId(applicationId.toString());
@@ -131,6 +120,8 @@ public class YarnApplicationGateway extends YarnGateway {
             result.success();
         } catch (Exception e) {
             result.fail(LogUtil.getError(e));
+        } finally {
+            close();
         }
         return result;
     }

@@ -16,7 +16,7 @@
         <fileSet>
             <directory>${basedir}/src/main/bin</directory>
             <lineEnding>unix</lineEnding>
-            <outputDirectory/>
+            <outputDirectory>bin</outputDirectory>
             <fileMode>755</fileMode>
             <includes>
                 <include>*.sh</include>
@@ -37,6 +37,13 @@
                 <include>**/*.yml</include>
                 <include>**/*.yaml</include>
                 <include>**/log4j2.xml</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <directory>target/classes/db/migration</directory>
+            <outputDirectory>db/migration</outputDirectory>
+            <includes>
+                <include>**/*</include>
             </includes>
         </fileSet>
     </fileSets>

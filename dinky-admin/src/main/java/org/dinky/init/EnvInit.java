@@ -19,6 +19,12 @@
 
 package org.dinky.init;
 
+import org.apache.hadoop.fs.FileSystem;
+
+import java.io.IOException;
+
+import javax.annotation.PreDestroy;
+
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.ApplicationContext;
@@ -41,7 +47,7 @@ public class EnvInit implements ApplicationRunner {
         ApplicationContext application = SpringUtil.getApplicationContext();
         Environment env = application.getEnvironment();
         String port = env.getProperty("server.port");
-        System.setProperty("dinkyAddr", ipAddress + ":" + port);
+        System.setProperty("dinkyAddr", "http://" + ipAddress + ":" + port);
         log.info(
                 "\n----------------------------------------------------------\n\t"
                         + "Application 'Dinky' is running! Access URLs:\n\t"
@@ -60,5 +66,10 @@ public class EnvInit implements ApplicationRunner {
                 port,
                 ipAddress,
                 port);
+    }
+
+    @PreDestroy
+    private void destroy() throws IOException {
+        FileSystem.closeAll();
     }
 }

@@ -56,6 +56,7 @@ export default {
    * */
 
   'catalog.name': 'Job Name',
+  'catalog.useTemplate': 'Use Template',
   'catalog.name.placeholder': 'Please enter the job name',
   'catalog.name.validate.error': 'Job name cannot contain _ characters, K8s naming specification',
   'catalog.name.tip':
@@ -70,11 +71,32 @@ export default {
   'catalog.udf.className.placeholder': 'Please enter the class or method name',
   'catalog.udf.templateId': 'UDF Template',
   'catalog.udf.templateId.placeholder': 'Please select UDF template',
+  'catalog.firstLevelOwner': 'Owner',
+  'catalog.firstLevelOwner.tip1': 'Please select the person responsible for the task',
+  'catalog.firstLevelOwner.tip2':
+    'Select the person responsible for the task and have direct responsibility for the task',
+  'catalog.secondLevelOwners': 'maintainer',
+  'catalog.secondLevelOwners.tip1': 'Please select the task maintainer',
+  'catalog.secondLevelOwners.tip2':
+    'Choose a task maintainer who is indirectly responsible for the task',
   /**
    *
    * datastudio
    *
    * */
+
+  'datastudio.middle.terminal.mode': 'Connect Mode',
+  'datastudio.middle.terminal.websocket': 'dinky backend',
+  'datastudio.middle.terminal.websocket.tip':
+    'In general, no modifications are required. If you have custom Nginx configurations, please edit this address.',
+  'datastudio.middle.terminal.cluster': 'Flink Cluster',
+  'datastudio.middle.terminal.cluster.tip':
+    'It is necessary to pre-register the corresponding cluster in the registry. Only manually registered clusters will be displayed.',
+  'datastudio.middle.terminal.fontSize': 'Font Size',
+  'datastudio.middle.terminal.backspaceAsCtrlH': 'Backspace As CtrlH',
+  'datastudio.middle.terminal.backspaceAsCtrlH.tip':
+    'If issues with display arise following a rollback deletion, modify this ',
+  'datastudio.middle.terminal.connect': 'Connect',
 
   'datastudio.middle.qg': 'Quick Guide',
   'datastudio.middle.qg.alertGroup': 'Register Alert Group',
@@ -86,9 +108,16 @@ export default {
   'datastudio.middle.qg.fragment': 'Global Variables',
   'datastudio.middle.qg.gitprojects': 'Git Projects',
   'datastudio.middle.qg.resource': 'Resource',
+  'datastudio.middle.qg.alertRule': 'Alert Rule',
+  'datastudio.middle.qg.alertTemplate': 'Register Alert Template',
+  'datastudio.middle.qg.accountCenter': 'Account Center',
+  'datastudio.middle.qg.globalsetting': 'Global Settings',
+  'datastudio.middle.qg.rootLog': 'View Root Log',
   'datastudio.middle.qg.udf': 'UDF',
   'datastudio.header.pushdolphin.title': 'Push task [ {name} ] to DolphinScheduler',
   'datastudio.header.pushdolphin.taskId': 'Dinky task encoding',
+  'datastudio.header.pushdolphin.taskGroup': 'Task Group',
+  'datastudio.header.pushdolphin.taskGroupPriority': 'Task Group Priority',
   'datastudio.header.pushdolphin.taskName': 'Task name: {name}',
   'datastudio.header.pushdolphin.taskNameExt':
     'Task type: {type} Process definition: {processDefinitionName}',
@@ -123,18 +152,36 @@ export default {
   'datastudio.project.delete.job': 'Delete [{type}] Job [{name}]',
   'datastudio.project.delete.job.confirm':
     'This operation will delete the execution history of the task and all information of the task. \nPlease operate with caution! This operation is irreversible!!!  \n\t\t\t\tConfirm to delete?',
+  'datastudio.project.import.title': 'Import json file',
+  'datastudio.project.import.tip': 'Click or drag file to this area to upload',
+  'datastudio.sqlTask.flinkJar.tip':
+    'The code editor on the left is the FlinkSql pre-statement, and the current form item is the EXECUTE JAR WITH syntax',
+  'datastudio.sqlTask.flinkJar.uri': 'Program path',
+  'datastudio.sqlTask.flinkJar.manualInput': 'Manual input',
+  'datastudio.sqlTask.flinkJar.uri.tip': 'Please enter the path to run the program (uri)',
+  'datastudio.sqlTask.flinkJar.mainClass': 'Program running class (mainClass)',
+  'datastudio.sqlTask.flinkJar.mainClass.tip':
+    'Please enter the running program running class (mainClass)',
+  'datastudio.sqlTask.flinkJar.args': 'Program running parameters (args)',
+  'datastudio.sqlTask.flinkJar.args.tip': 'Please enter the program running parameters (args)',
+  'datastudio.sqlTask.flinkJar.allowNonRestoredState':
+    'Ignore undeclared state (allowNonRestoredState)',
+  'datastudio.catalog.delete.table': 'Drop [{catalog}.{database}.{table}]',
+  'datastudio.catalog.delete.table.confirm':
+    'Drop statement will be called to delete the table. \nPlease operate with caution! This operation is irreversible!!!  \n\t\t\t\tConfirm to delete?',
+
   /**
    *
    * devops
    *
    * */
   'devops.joblist.status.all': 'All',
-  'devops.joblist.status.running': 'running',
+  'devops.joblist.status.running': 'Running',
   'devops.joblist.status.cancelled': 'Canceled',
-  'devops.joblist.status.failed': 'Exception job',
+  'devops.joblist.status.failed': 'Exception',
   'devops.joblist.status.restarting': 'Restarting',
-  'devops.joblist.status.finished': 'completed',
-  'devops.joblist.status.unknown': 'unknown job',
+  'devops.joblist.status.finished': 'Completed',
+  'devops.joblist.status.unknown': 'Unknown',
 
   'devops.baseinfo.name': 'Job Name',
   'devops.baseinfo.parallelism': 'Parallelism',
@@ -179,14 +226,14 @@ export default {
   'devops.jobinfo.config.JobLineage': 'Lineage',
   'devops.jobinfo.config.JobLogs': 'Job Logs',
   'devops.jobinfo.config.JobMonitor': 'Monitor',
-  'devops.jobinfo.config.JobParallelism': 'JobParallelism',
+  'devops.jobinfo.config.JobParallelism': 'Job Parallelism',
   'devops.jobinfo.config.JobType': 'Job Type',
   'devops.jobinfo.config.JobVersion': 'History Info',
-  'devops.jobinfo.config.RestartStrategy': 'RestartStrategy',
+  'devops.jobinfo.config.RestartStrategy': 'Restart Strategy',
   'devops.jobinfo.config.UserCustomConf': 'Custom Config',
   'devops.jobinfo.config.execmode': 'Exec Mode',
-  'devops.jobinfo.config.savePointPath': 'savePoint path',
-  'devops.jobinfo.config.startFromSavePoint': 'Start from SavePoint',
+  'devops.jobinfo.config.savePointPath': 'Savepoint Path',
+  'devops.jobinfo.config.startFromSavePoint': 'Start from Savepoint',
   'devops.jobinfo.config.submitType': 'Submit Mode',
   'devops.jobinfo.config.taskId': 'Dinky Job ID',
   'devops.jobinfo.config.useSqlFragment': 'Sql Fragment',
@@ -200,65 +247,123 @@ export default {
   'devops.jobinfo.recently.job.status': 'View recently saved job status information',
   'devops.jobinfo.reonline': 'Re-Online',
   'devops.jobinfo.restart': 'Restart',
-  'devops.jobinfo.savepoint.cancel': 'SavePoint Stop',
+  'devops.jobinfo.restart.auto.savepoint': 'Automatically create a save point and restart',
+  'devops.jobinfo.restart.from.savepoint': 'Restart from the save point',
+  'devops.jobinfo.restart.from.savepoint.help':
+    'Stop the job and start from the specified save point, this option will not automatically create a save point (be sure to ensure that this path exists, otherwise the restart will fail)',
+  'devops.jobinfo.restart.cannot.auto.savepoint':
+    'The job has been stopped and Smart Restart is not available',
+  'devops.jobinfo.savepoint.cancel': 'Savepoint Stop',
   'devops.jobinfo.savepoint.canceljob': 'Normal Stop',
-  'devops.jobinfo.savepoint.stop': 'SavePoint Pause',
-  'devops.jobinfo.savepoint.trigger': 'SavePoint Triggers',
+  'devops.jobinfo.savepoint.stop': 'Savepoint Pause',
+  'devops.jobinfo.savepoint.trigger': 'Savepoint Triggers',
   'devops.jobinfo.smart_stop': 'Smart Stop',
+  'devops.jobinfo.smart_restart': 'Smart restart',
+  'devops.jobinfo.smart_restart.help':
+    'A save point is automatically created and started from a job stop during the job stop process',
   'devops.jobinfo.unable.obtain.status':
     'Unable to connect to Flink cluster to obtain the latest job status information',
   'devops.jobinfo.version.delete': 'Delete Version',
   'devops.jobinfo.version.delete.sure': 'Are you sure you want to remove this version？V{version}',
   'devops.jobinfo.version.latestVersion': 'Current Version',
-  'devops.jobinfo.version.rollBack': 'Roll bcak this version',
+  'devops.jobinfo.version.rollBack': 'Roll back this version',
   'devops.jobinfo.version.versionList': 'Job Version',
   'devops.jobinfo.remap.title': 'Remap the cluster information',
   'devops.jobinfo.remap.cluster.title': 'Cluster instance mapping information',
   'devops.jobinfo.remap.cluster.title.help':
     '(Note: This operation will modify the configuration of the cluster instance simultaneously.)',
   'devops.jobinfo.remap.job.title': 'Job mapping information',
-
+  'devops.joblist.clear.filter': 'Cancel Selected',
+  'devops.joblist.clear.filtertips': 'Clear selected tasks, but not clear other filter conditions',
   'devops.joblist.detail': 'Job Detail',
   'devops.joblist.history': 'History',
-  'devops.joblist.joblist': 'JobList',
+  'devops.joblist.joblist': 'Job List',
   /**
    *
    * home
    *
    * */
 
-  'home.develop': 'Data Develop',
-  'home.develop.re': 'Resource Registration',
-  'home.develop.re.ag': 'Alarm Group',
-  'home.develop.re.ai': 'Alarm Instance',
-  'home.develop.re.cc': 'Cluster Configuration',
-  'home.develop.re.ci': 'Flink Cluster Instance',
-  'home.develop.re.ds': 'Data Source',
-  'home.develop.re.git': 'Git Project',
-  'home.develop.re.gv': 'Global Variables',
+  'home.fast.link': 'Quick Start / Easy Navigation',
+  'home.mywork': 'My Task',
+  'home.allwork': 'All Task',
+  'home.task.not.desc': 'No mission statement at this time',
+  'home.task.not.instance':
+    'This task has not been run before, so we cannot go to the [Devops] to view task details. Please run this task first',
+  'home.task.update.at': 'Updated At: {time}',
+  'home.job.stream': 'Stream Job',
   'home.job.batch': 'Batch Job',
-  'home.job.development': 'Development',
-  'home.job.failed': 'Failed Today',
-  'home.job.failed.handle': 'Handled',
-  'home.job.failed.name': 'Job Name',
-  'home.job.failed.rank': 'Rank',
-  'home.job.failed.time': 'Abnormal Time',
-  'home.job.failed.unhandle': 'Currently Unhandled Failure',
-  'home.job.finished': 'Completed Today',
-  'home.job.instance': 'Task Instance',
-  'home.job.metrics': 'Job Monitoring',
-  'home.job.online': 'Online Today',
-  'home.job.onlineRate': 'Number of Jobs Online Rate',
-  'home.job.recovery': 'Recovery Today',
-  'home.job.recovery.rate': 'Recovery Rate',
-  'home.job.running': 'Currently Running',
-  'home.job.running.dayonday': 'Day on Day Ratio',
-  'home.job.running.status': 'Current Job Running Status',
-  'home.job.stream': 'Streaming Job',
-  'home.server.load': 'Server Load',
-  'home.server.load.bad': 'Bad',
-  'home.server.load.excellent': 'Excellent',
-  'home.server.load.good': 'Good',
+  'home.header.tips.morning.1': 'Good morning, {user}, A new day, new code, new challenges',
+  'home.header.tips.morning.2':
+    'good morning, {user}, The morning sunshine brings a new beginning, come on!',
+  'home.header.tips.morning.3':
+    'Good morning, {user}, programmer! May your bugs dissipate like morning mist.',
+  'home.header.tips.morning.4':
+    'Good morning, {user}, a new day, new ideas, looking forward to your burst of inspiration.',
+  'home.header.tips.morning.5':
+    'Good morning, {user}, The morning coffee is ready and it`s time to start working.',
+  'home.header.tips.morning.6':
+    'Good morning, {user}, may your morning be like a cup of hot tea, warm and comfortable.',
+  'home.header.tips.morning.7':
+    'Good morning, {user}, remember to smile, it will make your day even better.',
+  'home.header.tips.morning.8':
+    'Good morning, {user}, stay positive, something wonderful is about to happen.',
+  'home.header.tips.morning.9':
+    'Good morning, {user}, May your programming journey be filled with discovery and innovation.',
+  'home.header.tips.morning.10': 'Good morning, {user}, may your code be as fresh as morning dew.',
+  'home.header.tips.forenoon.1':
+    'Good morning, {user}, may your code be as bright as the morning sun.',
+  'home.header.tips.forenoon.2':
+    'Good morning, {user}, are you tired from coding this morning? Take a break and continue to work hard.',
+  'home.header.tips.forenoon.3':
+    'Good morning, {user}, the sunshine this morning is just right, illuminating your workbench.',
+  'home.header.tips.forenoon.4':
+    'Good morning, {user}, enjoy your morning work. Every task is worth giving your all.',
+  'home.header.tips.forenoon.5':
+    'Good morning, {user}, May your code be as refreshing as morning coffee.',
+  'home.header.tips.forenoon.6':
+    'Good morning, {user}, may your code be as vast as the morning sky.',
+  'home.header.tips.noon.1':
+    'Good afternoon, {user}, Lunch time, give yourself a chance to rest and recharge.',
+  'home.header.tips.noon.2':
+    'Good afternoon, {user}, The sunshine at noon reminds us that it`s time to slow down and enjoy a moment of tranquility.',
+  'home.header.tips.noon.3':
+    'Good afternoon, {user}, A brief break at noon can make your afternoon more energetic',
+  'home.header.tips.noon.4':
+    'Good afternoon, {user}, The sunshine at noon is a warm embrace throughout the day.',
+  'home.header.tips.noon.5':
+    'Good afternoon, {user}, A sumptuous lunch is the best reward for your hard work.',
+  'home.header.tips.afternoon.1':
+    'Good afternoon, {user}, The afternoon work has begun. Stay enthusiastic and focused.',
+  'home.header.tips.afternoon.2':
+    'Good afternoon, {user}, The gentle sunshine in the afternoon is suitable for thinking or meditation, to find inner peace.',
+  'home.header.tips.afternoon.3':
+    'Good afternoon, {user}, The gentle breeze of the afternoon brings fresh air. May your mood be so fresh as well.',
+  'home.header.tips.afternoon.4':
+    'Good afternoon, {user}, don`t forget to give yourself some sweet treats during this busy afternoon! (✿✪‿✪｡)',
+  'home.header.tips.afternoon.5':
+    'Good afternoon, {user}, the gentle breeze of the afternoon, may your mood be as relaxed as it is. (✧∀✧)',
+  'home.header.tips.evening.1':
+    'Good evening, {user}, the busy day is over, let`s relax and unwind! (✿✪‿✪｡)',
+  'home.header.tips.evening.2':
+    'Good evening, {user}, the evening glow. May your mood be as brilliant as it is. (✧∇✧)',
+  'home.header.tips.evening.3':
+    'Good evening, {user}, enjoy the tranquility of the evening and let the busyness of the day slowly settle. (✧◡◡✧)',
+  'home.header.tips.evening.4':
+    'Good evening, {user}, In the evening sky, stars are starting to twinkle. May your dreams also light up with them. (✧✧✧)',
+  'home.header.tips.evening.5':
+    'Good evening, {user}, may your code shine like the stars in the evening.',
+  'home.header.tips.lateNight.1':
+    'Good night, {user}, The tranquility of late night, may you have a peaceful and beautiful night. (✿ ✉ ✿)',
+  'home.header.tips.lateNight.2':
+    'Good night, {user}, The starry sky at night brings infinite inspiration to your thinking.',
+  'home.header.tips.lateNight.3':
+    'Good night, {user}, The starry sky at night reminds us of the vastness of the universe and the possibilities of thinking.',
+  'home.header.tips.lateNight.4':
+    'Good night, {user}, late night work. May your focus and persistence bring results.',
+  'home.header.tips.lateNight.5':
+    'Good night, {user}, May your code be as profound as the thoughts of late night.',
+
   /**
    *
    * layouts
@@ -283,6 +388,8 @@ export default {
   'login.result': '{msg}\t\t{time}',
   'login.username.placeholder': 'Username',
   'login.username.required': 'Please input your username!',
+  'login.token.error':
+    'Unable to get token information/session has expired, will jump to the login page, please re-login...',
   /**
    *
    * menu
@@ -309,7 +416,7 @@ export default {
   'menu.tips.2': 'Add Root Menu',
   'menu.tips.3': 'Add/Delete SubMenu',
   'menu.type': 'Menu Type',
-  'menu.type.button': 'Button',
+  'menu.type.button': 'Button/Area Block',
   'menu.type.dir': 'Directory',
   'menu.type.menu': 'Menu',
   'menu.typePlaceholder': 'Please select the menu type',
@@ -340,6 +447,8 @@ export default {
   'metrics.flink.taskId': 'Dinky Job ID',
   'metrics.dinky.not.open':
     'Dinky Server monitoring is not enabled, please go to the Setting Center -> Global Settings -> Metrics Configuration -> Dinky JVM Monitor switch to open',
+  'metrics.flink.deleteConfirm':
+    'Are you sure to delete the monitoring data under this task? \nAttention: This operation will synchronously affect the monitoring data of the operation and maintenance center for this task!! \nPlease operate with caution, this operation is irreversible!',
 
   /**
    *
@@ -348,24 +457,28 @@ export default {
    * */
 
   'pages.datastudio.editor.check': 'Check',
-  'pages.datastudio.editor.debug': 'Preview',
+  'pages.datastudio.editor.debug': 'Search',
   'pages.datastudio.editor.exec': 'Execute',
   'pages.datastudio.editor.exec.error': 'Task [{jobName}] execution failed',
   'pages.datastudio.editor.debug.error': 'Task [{jobName}] debug failed',
-  'pages.datastudio.editor.exec.success': 'Execution succeeded',
-  'pages.datastudio.editor.debug.success': 'Debug succeeded',
+  'pages.datastudio.editor.exec.success': 'Submit succeeded',
+  'pages.datastudio.editor.debug.success': 'Search succeeded',
   'pages.datastudio.editor.execute.warn':
     'The execution mode of this task is [{type}], which does not support SQL query, please save it manually and use the button on the right - job submission',
-  'pages.datastudio.editor.explan': 'Get the current FlinkSql execution graph',
-  'pages.datastudio.editor.explan.tip': 'JobPlan for FlinkSQL',
+  'pages.datastudio.editor.explain': 'Get the current FlinkSql execution graph',
+  'pages.datastudio.editor.explain.tip': 'JobPlan for FlinkSQL',
   'pages.datastudio.editor.stop': 'Stop',
   'pages.datastudio.editor.stop.job': 'Stop job',
   'pages.datastudio.editor.stop.jobConfirm': 'Are you sure to stop the job [{jobName}]? ',
+  'pages.datastudio.editor.stop.force.jobConfirm':
+    'The current job [{job name}] fails to connect to the cluster to obtain information and cannot be stopped. Change the status forced?',
   'pages.datastudio.editor.submitting': 'The new task [{jobName}] is executing',
   'pages.datastudio.editor.checking': 'The task [{jobName}] is checking',
   'pages.datastudio.editor.debugging': 'The new task [{jobName}] is debugging',
   'pages.datastudio.editor.onlyread':
     'Task has been published, modification is prohibited, please go offline first',
+  'pages.datastudio.editor.onlyread.lock':
+    'No permission for task operation. Please contact the task owner',
   'pages.datastudio.editor.notsave': 'Current changes are not saved! ',
   'pages.datastudio.editor.notsave.note':
     'Continue will discard the changes, are you sure to continue?',
@@ -411,10 +524,21 @@ export default {
   'pages.datastudio.label.execConfig.selectDatabase.tip': 'Select the database to be used',
   'pages.datastudio.label.execConfig.maxrow': 'Maximum number of rows',
   'pages.datastudio.label.execConfig.maxrow.tip': 'The maximum number of rows of preview data',
+  'pages.datastudio.label.execConfig.mocksink': 'SinkMock',
+  'pages.datastudio.label.execConfig.mocksink.tip':
+    'Mock the SinkFunction, result will not be written to the production environment during debugging, but can preview through dinky',
   'pages.datastudio.label.jobConfig': 'Job Config',
   'pages.datastudio.label.jobConfig.addConfig': 'Add Config item',
   'pages.datastudio.label.jobConfig.addConfig.params': 'parameters',
   'pages.datastudio.label.jobConfig.addConfig.value': 'value',
+  'pages.datastudio.label.udf': 'Refer Udf',
+  'pages.datastudio.label.udf.tip':
+    'Refer UDF. Automatically add statement `create temporary function [functionName] as [className]` at the beginning of the SQL statement',
+  'pages.datastudio.label.udf.duplicate.tip':
+    'The class [className] selected this time already exists and duplicate reference is not allowed. Please reselect or cancel reference (delete and change line).',
+  'pages.datastudio.label.udf.injectUdf': 'Refer UDF',
+  'pages.datastudio.label.udf.name': 'function name',
+  'pages.datastudio.label.udf.className': 'class name',
   'pages.datastudio.label.jobConfig.alertGroup': 'Alarm Group',
   'pages.datastudio.label.jobConfig.alertGroup.tip': 'Select alert group',
   'pages.datastudio.label.jobConfig.batchmode': 'Batch Mode',
@@ -425,39 +549,52 @@ export default {
   'pages.datastudio.label.jobConfig.clusterConfig.tip1':
     'Select Flink cluster Config for remote submission tasks in [{type}] mode',
   'pages.datastudio.label.jobConfig.clusterConfig.tip2':
-    'If there is no data in the drop-down box, please configure/create a new cluster instance first, or check whether the cluster configuration/cluster instance is healthy and available.',
+    'If there is no data in the drop-down box, please configure/create a new cluster instance first, or check whether the cluster configuration/cluster instance is healthy and available/Is it in an enabled state',
   'pages.datastudio.label.jobConfig.execmode.tip':
     'Specify the execution mode of the Flink task, the default is Local',
+  'pages.datastudio.label.jobConfig.watermark':
+    'Current task has published,Config cannot modified,If you need to modify, please offline first',
+  'pages.datastudio.label.jobConfig.lock':
+    'The current task has no permission and cannot be modified. If you need to modify the task, contact the task owner to obtain the permission',
   'pages.datastudio.label.jobConfig.flinksql.env': 'FlinkSQL environment',
   'pages.datastudio.label.jobConfig.flinksql.env.tip1':
     'Select the FlinkSQL execution environment of the current task, and the environment statement will be executed in advance. The default is none. ',
   'pages.datastudio.label.jobConfig.fragment': 'Global variables',
   'pages.datastudio.label.jobConfig.fragment.tip':
     '[Enhanced Features] Enable FlinkSql global variables, use "',
-  'pages.datastudio.label.jobConfig.insert': 'Insert StatementSet',
-  'pages.datastudio.label.jobConfig.insert.tip':
-    '[Enhanced Features] Enable the statement set mechanism, multiple Insert statements will be combined into one JobGraph before submission, and the Select statement is invalid',
   'pages.datastudio.label.jobConfig.other': 'Other Config',
   'pages.datastudio.label.jobConfig.other.tip':
     'Other Config items will be applied to the execution environment, such as pipeline.name',
+  'pages.datastudio.label.jobConfig.udf': 'UDF injected',
+  'pages.datastudio.label.jobConfig.udf.tip': 'Automatically inject UDF',
   'pages.datastudio.label.jobConfig.parallelism': 'Parallelism',
   'pages.datastudio.label.jobConfig.parallelism.tip':
-    'Set the parallelism of Flink tasks, the minimum is 1',
-  'pages.datastudio.label.jobConfig.savePointStrategy': 'SavePointStrategy',
+    'Set the parallelism of Flink tasks, the minimum value is 1',
+  'pages.datastudio.label.jobConfig.savePointStrategy': 'Savepoint strategy',
   'pages.datastudio.label.jobConfig.savePointStrategy.tip':
-    'Specify the SavePoint strategy, the default is disabled',
-  'pages.datastudio.label.jobConfig.savePointpath': 'SavePointpath',
-  'pages.datastudio.label.jobConfig.savePointpath.tip1': 'Restore Flink task from SavePointPath',
+    'Specify the Savepoint strategy, the default is disabled',
+  'pages.datastudio.label.jobConfig.savePointpath': 'Savepoint Path',
+  'pages.datastudio.label.jobConfig.savePointpath.tip1': 'Restore Flink task from Savepoint path',
   'pages.datastudio.label.jobConfig.savePointpath.tip2': 'hdfs',
+  'pages.datastudio.label.jobConfig.autoRestart': 'Auto Restart',
+  'pages.datastudio.label.jobConfig.autoRestart.tip':
+    'When enabled, the platform will automatically restart the job from the latest checkpoint when it detects that the job has failed (FAILED) or is in an unknown (UNKNOWN) state',
   'pages.datastudio.label.jobInfo.dialect': 'Dialect',
   'pages.datastudio.label.jobInfo.id': 'Job ID',
-  'pages.datastudio.label.jobInfo.name': 'job name',
-  'pages.datastudio.label.jobInfo.versionId': 'version number',
+  'pages.datastudio.label.jobInfo.name': 'Job name',
+  'pages.datastudio.label.jobInfo.versionId': 'Version number',
+  'pages.datastudio.label.jobInfo.firstLevelOwner': 'Owner',
+  'pages.datastudio.label.jobInfo.secondLevelOwners': 'Maintainer',
+  'pages.datastudio.label.jobInfo.className': 'ClassName',
   'pages.datastudio.label.result.query.latest.data': 'Get the latest data',
+  'pages.datastudio.label.result.query.latest.data.truncate':
+    'The data is too long to be displayed in full',
   'pages.datastudio.label.version': 'Version History',
   'pages.datastudio.label.version.diff': 'Version Diff',
-  'pages.datastudio.label.version.leftTitle': 'Version number',
-  'pages.datastudio.label.version.rightTitle': 'Version number',
+  'pages.datastudio.label.version.leftTitle':
+    'Version number: {versionId} Creation time: {createTime}',
+  'pages.datastudio.label.version.rightTitle':
+    'Version: [Current Edited Version] Update Time: [{updateTime}]',
   'pages.datastudio.label.version.rollback': 'Rollback',
   'pages.datastudio.label.version.rollback.flinksql': 'Rollback Flink SQL Version',
   'pages.datastudio.label.version.rollback.flinksqlConfirm':
@@ -466,7 +603,7 @@ export default {
   'pages.devops.jobinfo.localenv': 'Local environment',
   'pages.metadata.DataSearch': 'Data Search',
   'pages.metadata.selectDatabase': 'Select Database',
-  'pages.task.savePointPath': 'SavePoint Path',
+  'pages.task.savePointPath': 'Savepoint Path',
 
   'pages.datastudio.catalog.catalogSelect': 'Please select catalog & database',
   'pages.datastudio.catalog.tableInfo': 'Table Info',
@@ -495,12 +632,18 @@ export default {
   'pages.datastudio.label.history.statementSet': 'StatementSet',
   'pages.datastudio.label.history.parallelism': 'Parallelism',
   'pages.datastudio.label.history.checkpoint': 'Checkpoint Interval',
-  'pages.datastudio.label.history.savePointStrategy': 'SavePoint Strategy',
-  'pages.datastudio.label.history.savePointPath': 'SavePoint Path',
+  'pages.datastudio.label.history.savePointStrategy': 'Savepoint Strategy',
+  'pages.datastudio.label.history.savePointPath': 'Savepoint Path',
   'pages.datastudio.label.history.clusterType': 'Cluster Type',
   'pages.datastudio.label.history.clusterInstance': 'Cluster Instance',
   'pages.datastudio.label.history.clusterConfig': 'Cluster Config',
   'pages.datastudio.label.history.local': 'Local (Built-in MiniCluster)',
+
+  'pages.datastudio.label.lastUpdateDes': 'Recently saved',
+  'pages.datastudio.label.lastUpdateJust': 'Newly',
+  'pages.datastudio.label.lastUpdateMinutesAgo': 'Minutes Ago',
+  'pages.datastudio.label.lastUpdateHoursAgo': 'Hours Ago',
+
   /**
    *
    * rc
@@ -526,7 +669,7 @@ export default {
   'rc.ai.accessKeySecretPleaseHolder': 'Please enter AccessKeySecret',
   'rc.ai.action': 'Interface method',
   'rc.ai.actionPleaseHolder': 'Please enter the interface method',
-  'rc.ai.agentId': 'AgentId',
+  'rc.ai.agentId': 'App ID(AgentId)',
   'rc.ai.agentIdPleaseHolder': 'Please enter AgentId',
   'rc.ai.sendUrl': 'QiWei Send Addr',
   'rc.ai.sendUrlPleaseHolder': 'Please enter the sending address or the proxy address',
@@ -686,7 +829,7 @@ export default {
   'rc.alert.template.new': 'Create an alert template',
   'rc.cc.addConfig': 'Add Config item',
   'rc.cc.baseConfig': 'Basic Config',
-  'rc.cc.ckpDir': 'CheckPoint Path',
+  'rc.cc.ckpDir': 'Checkpoint Path',
   'rc.cc.ckpDirHelp': 'Please enter the checkpoint path! This parameter configuration item is',
   'rc.cc.create': 'Create Cluster Config',
   'rc.cc.defineConfig': 'Flink Default Config (high priority)',
@@ -754,13 +897,15 @@ export default {
   'rc.cc.name': 'Cluster Config Name',
   'rc.cc.search': 'Search Name',
   'rc.cc.namePlaceholder': 'Please enter the cluster configuration name!',
-  'rc.cc.spDir': 'SavePoint Path',
+  'rc.cc.spDir': 'Savepoint Path',
   'rc.cc.spDirHelp': 'Please enter the savepoint path! This parameter configuration item is',
   'rc.cc.sqlSubmitJarPath': 'Jar File Path',
   'rc.cc.sqlSubmitJarPathHelp':
     'Please enter the Jar file path! eg: hdfs:///dinky/dinky-app-1.16-with-dependencies.jar',
+  'rc.cc.sqlSubmitJarPathHelpTips':
+    'In Yarn mode, this parameter can be set to: hdfs:///dinky/dinky-app-1.17-with-dependencies.jar Alternatively, if rs:/dinky/inky app 1.17 with dependencies. jar is set to the rs:/ protocol, the jar package needs to be uploaded to Dinky`s resource center and the path filled in. In K8s mode, only the local://protocol is supported',
   'rc.cc.start': 'Start Session Cluster',
-  'rc.cc.submitSqlConfig': 'Submit FlinkSQL Config items (required in Application mode)',
+  'rc.cc.submitSqlConfig': 'Submit FlinkSQL Config items',
   'rc.cc.tmHeap': 'TaskManager Heap Memory',
   'rc.cc.tmHeapHelp':
     'Please enter the TaskManager heap memory size! This parameter configuration item is',
@@ -781,18 +926,20 @@ export default {
   'rc.ci.create': 'Create Cluster Instance',
   'rc.ci.deleteConfirm': 'Are you sure to delete this Flink Cluster instance? ',
   'rc.ci.heartbeat': 'Heartbeat Detection',
-  'rc.ci.jma': 'JobManger Address',
-  'rc.ci.jmha': 'JobManger HA Address',
+  'rc.ci.killConfirm':
+    'Are you sure to stop this Flink Cluster instance?  Please note that after stopping, it will not be recovered! The associated task will affect, please be careful!',
+  'rc.ci.kill': 'Stop Flink Cluster Instance',
+  'rc.ci.jma': 'JM Address',
+  'rc.ci.jmha': 'JobManager HA Address',
   'rc.ci.jmha.tips':
-    'Add the RestApi address of the JobManager of the Flink cluster. In HA mode, the addresses are separated by commas, for example',
+    'Add the RestApi address of the JobManager of the Flink cluster. In HA mode, the addresses are separated by commas, for example: 192.168.123.101:8081',
   'rc.ci.jmha.validate.port': 'Does not meet the rules! Port number range [0-65535]',
-  'rc.ci.jmha.validate.slash': 'Does not comply with the rules! Cannot contain /',
   'rc.ci.jmhaPlaceholder': 'Please enter the JobManager HA address!',
   'rc.ci.management': 'Cluster Instance Management',
   'rc.ci.modify': 'Modify cluster Instance',
   'rc.ci.name': 'Name',
   'rc.ci.autoRegisterCannotModify':
-    'Automatically registered instances can only modify the `JobManger high-availability address` attribute, and others cannot be modified!',
+    'Automatically registered instances can only modify the `JobManager high-availability address` attribute, and others cannot be modified!',
   'rc.ci.namePlaceholder': 'Please enter a name!',
   'rc.ci.recycle': 'Recycle Flink Cluster Instances',
   'rc.ci.recycleConfirm':
@@ -824,6 +971,26 @@ export default {
   'rc.doc.typePlaceholder': 'Please select the function type this Document belongs to!',
   'rc.doc.version': 'Version',
   'rc.doc.versionPlaceholder': 'Please select the version this Document belongs to!',
+  'rc.doc.type.codeSnippetOrTemplate': 'Code Snippet/Template',
+  'rc.doc.type.flinkParam': 'Flink Parameter',
+  'rc.doc.type.functionOrUDF': 'Function/UDF',
+  'rc.doc.type.other': 'Other',
+  'rc.doc.function.type.compare': 'Comparison Function',
+  'rc.doc.function.type.logical': 'Logical Function',
+  'rc.doc.function.type.arithmetic': 'Arithmetic Function',
+  'rc.doc.function.type.string': 'String Function',
+  'rc.doc.function.type.time': 'Time Function',
+  'rc.doc.function.type.conditional': 'Conditional Function',
+  'rc.doc.function.type.typeConver': 'Type Conversion Function',
+  'rc.doc.function.type.collection': 'Collection Function',
+  'rc.doc.function.type.valueConstruction': 'Value Construction Function',
+  'rc.doc.function.type.valueAccess': 'Value Access Function',
+  'rc.doc.function.type.group': 'Grouping Function',
+  'rc.doc.function.type.hash': 'Hash Function',
+  'rc.doc.function.type.aggregate': 'Aggregate Function',
+  'rc.doc.function.type.column': 'Column Function',
+  'rc.doc.function.type.tableAggregate': 'Table-Valued Aggregate Function',
+  'rc.doc.function.type.other': 'Other Function',
   'rc.ds.application': 'Application',
   'rc.ds.autoIncrement': 'Autoincrement',
   'rc.ds.backup': 'Backup',
@@ -835,11 +1002,14 @@ export default {
   'rc.ds.search': 'Search Name/Note',
   'rc.ds.console.exec': 'Execute',
   'rc.ds.console.running': 'Running...',
+  'rc.ds.detail.tag.console.clear.log': 'Clear Log...',
   'rc.ds.create': 'Create DataSource',
   'rc.ds.decimalDigits': 'Decimal Range',
   'rc.ds.default': 'Default Value',
   'rc.ds.delete': 'Delete DataSource',
   'rc.ds.deleteConfirm': 'Are you sure to delete this DataSource? ',
+  'rc.ds.total.db': 'Total {total} databases',
+  'rc.ds.total.table': 'Total {total} tables',
   'rc.ds.detail.tag.console': 'Console',
   'rc.ds.detail.tag.desc': 'Description',
   'rc.ds.detail.tag.gensql': 'Generate SQL',
@@ -858,7 +1028,7 @@ export default {
   'rc.ds.groupName': 'Group Type',
   'rc.ds.groupNamePlaceholder': 'Please select a group type!',
   'rc.ds.isNull': 'Not Null',
-  'rc.ds.javaType': 'Java Type',
+  'rc.ds.dataType': 'Data Type',
   'rc.ds.length': 'Length',
   'rc.ds.management': 'DataSource Management',
   'rc.ds.modify': 'Modify DataSource',
@@ -889,7 +1059,8 @@ export default {
   'rc.gp.build.step.4': 'Get Artifact',
   'rc.gp.build.step.5': 'Analysis UDF',
   'rc.gp.build.step.6': 'Finish',
-  'rc.gp.buildArgs': 'Build Arguments',
+  'rc.gp.buildArgs':
+    'Build parameters: Instructions need to be included in characters, please use single quotes \'\', double quotes will be escaped as \\"\\"',
   'rc.gp.buildConfirm': 'Are you sure to start building this project? ',
   'rc.gp.buildFail': 'Build failed',
   'rc.gp.buildState': 'Build State',
@@ -953,6 +1124,23 @@ export default {
   'rc.resource.upload.tip1': 'Click or drag file to this area to upload',
   'rc.resource.upload.tip2':
     'Support for a single or bulk upload. Strictly prohibited from uploading company data or\n          other banned files.',
+  'rc.resource.filelist': 'File list',
+  'rc.resource.sync': 'Sync remote files',
+  'rc.resource.sync.confirm':
+    'Please note that this operation will delete all records in the database and will affect running jobs as well as corresponding resource files referenced in UDF management, resulting in job failure. And UDF cannot be used in UDF management Please operate with caution!! Please confirm if you want to continue?',
+  'rc.resource.copy_to_add_custom_jar': 'Copy as ADD CUSTOMJAR syntax',
+  'rc.resource.copy_to_add_jar': 'Copy as ADD JAR syntax',
+  'rc.resource.copy_to_add_file': 'Copy as ADD FILE syntax',
+  'rc.resource.copy_to_add_rs_path': 'Copy RS protocol resource path',
+  'rc.resource.copy_success':
+    'Copy successfully, The value is: [{fillValue}] has been copied to the clipboard. Please paste it to the desired location for use',
+  'rc.resource.enable': 'Resource management function is not enabled',
+  'rc.resource.enable.tips':
+    'Please go to [Setting Center -> Global Settings -> Resource Configuration] to enable the resource management function!!!',
+  'rc.resource.delete': 'Delete Resource',
+  'rc.resource.deleteConfirm':
+    'We have detected that you have enabled physical deletion mode. Once executed, it cannot be restored and this operation is irreversible. Are you sure you want to delete this resource file?',
+
   'rc.template.codeType': 'Code Type',
   'rc.template.codeTypePlaceholder': 'Please select code type! ',
   'rc.template.create': 'Create UDF Template',
@@ -977,6 +1165,11 @@ export default {
   'rc.udf.register.deleteConfirm': 'Are you sure you want to delete this UDF? ',
   'rc.udf.register': 'Register UDF',
   'rc.udf.register.select': 'Please select a non-directory node',
+  // ingress
+  'rc.cc.k8s.ingress.enabled': 'Kubernetes ingress enable',
+  'rc.cc.k8s.ingress.enabledHelp': 'Kubernetes ingress enable! eg',
+  'rc.cc.k8s.ingress.domain': 'Kubernetes ingress domain address',
+  'rc.cc.k8s.ingress.domainHelp': 'Kubernetes ingress domain address! eg',
   /**
    *
    * role
@@ -994,6 +1187,8 @@ export default {
   'role.deleteConfirm': 'Are you sure you want to delete this Role？',
   'role.roleCode': 'Role Code',
   'role.roleManagement': 'Role Management',
+  'role.roleManagement.tips':
+    'The system has assigned [Admin] users by default when creating tenants, which means that all tenants will include [Admin] users. When creating roles, it is not possible to freely specify tenants. If you need to specify a non current tenant, please select the tenant according to your own needs and switch in the upper right corner (if there is no new tenant in the options, please refresh the page after the tenant is successfully created). After the switch is completed, perform related operations such as creating roles and role empowerment',
   'role.roleName': 'Role Name',
   'role.update': 'Update Role',
   'role.user.list': 'Role of User List',
@@ -1024,7 +1219,7 @@ export default {
   'sys.alert.rule.label.jobType': 'Execution mode',
   'sys.alert.rule.label.jobException': 'The job is abnormal',
   'sys.alert.rule.label.checkpointFailed': 'Checkpoint Failed',
-  'sys.alert.rule.label.checkpointTime': 'CheckPoint Time',
+  'sys.alert.rule.label.checkpointTime': 'Checkpoint Time',
   'sys.alert.rule.label.jobStatus': 'Job status',
   'sys.alert.rule.addRule': 'Add Rule',
   'sys.alert.rule.allRule': 'All Rules',
@@ -1076,7 +1271,12 @@ export default {
   'sys.ldap.settings.testConnect.success': 'Test Connect Successful, {count} users were obtained',
   'sys.ldap.settings.testLogin': 'Test Login',
   'sys.ldap.settings.loadUser': 'Load User',
+  'sys.ldap.settings.keyword':
+    'You can enter your username/nickname for search, support fuzzy queries, enter keywords and press enter to complete the search',
   'sys.ldap.settings.loadable': 'Whether it can be imported',
+  'sys.setting.ingress': 'Ingress configuration',
+  'sys.setting.approval': 'Approval Configuration',
+  'sys.setting.approval.tooltip': 'Approval Configuration for task submit',
   /**
    *
    * tenant
@@ -1184,6 +1384,7 @@ export default {
   'user.update': 'Modify User',
   'user.username': 'User Name',
   'user.usernamePlaceholder': 'Please enter user name',
+  'user.phoneFormat': 'The format of the phone number is incorrect',
 
   'lineage.getError': 'Cannot Get Lineage',
   'lineage.expandField': 'Expand Field(UnSupported)',
@@ -1194,5 +1395,69 @@ export default {
   'lineage.collapseUpstream': 'Collapse Upstream(UnSupported)',
   'lineage.showMap': 'Show Map',
   'lineage.hideMap': 'Hide Map',
-  'lineage.refresh': 'Refresh'
+  'lineage.refresh': 'Refresh',
+
+  'sys.classLoaderJars.tips':
+    'The following content shows the list of jar packages loaded by the system class loader inside the Dinky service. In this way, you can visually view all Jar files that have been loaded inside the service to help troubleshoot Jar package conflicts and other issues.',
+
+  'dashboard.create': 'Create Dashboard',
+  'dashboard.add': 'Add Chart',
+  'dashboard.chart.name': 'Chart Name',
+  'dashboard.chart.select': 'Please select a chart',
+  'dashboard.update': 'Edit Chart',
+  'dashboard.name': 'Dashboard Name',
+  'dashboard.name.maxLength': 'The maximum length is 32 characters',
+  'dashboard.namePlaceholder': 'Please enter the dashboard name',
+  'dashboard.remark': 'Description',
+  'dashboard.remarkPlaceholder': 'Please enter the description',
+  'dashboard.chartTheme': 'Chart Theme',
+  'dashboard.selectChartTheme': 'Please select a Chart theme',
+  'dashboard.delete': 'Delete Dashboard',
+  'dashboard.deleteConfirm': 'Are you sure to delete this Dashboard？',
+  'dashboard.theme.chalk': 'Chalk',
+  'dashboard.theme.dark': 'Dark',
+  'dashboard.theme.essos': 'Essos',
+  'dashboard.theme.infographic': 'Infographic',
+  'dashboard.theme.macarons': 'Macarons',
+  'dashboard.theme.purple-passion': 'Purple-Passion',
+  'dashboard.theme.roma': 'Roma',
+  'dashboard.theme.shine': 'Purple',
+  'dashboard.theme.vintage': 'Vintage',
+  'dashboard.theme.westeros': 'Westeros',
+  'dashboard.theme.wonderland': 'Wonderland',
+
+  'datastudio.toolbar.rightClick.hideToolbarDesc': 'hides the toolbar window name',
+  'datastudio.toolbar.rightClick.showToolbarDesc': 'displays the toolbar window name',
+  'datastudio.toolbar.rightClick.closeCompact': 'turn off compact mode',
+  'datastudio.toolbar.rightClick.openCompact': 'turn on compact mode',
+
+  'approval.dinky.not.open':
+    'Dinky approval is not enabled, please go to the Setting Center -> Approval Configuration switch to open',
+  'approval.reviewList': 'Review List',
+  'approval.submitList': 'Submit List',
+  'approval.id': 'Approval Id',
+  'approval.taskId': 'Task Id',
+  'approval.previousTaskVersion': 'Previous Task Version Id',
+  'approval.currentTaskVersion': 'Current Task Version Id',
+  'approval.status': 'Approval Status',
+  'approval.submitterName': 'Submitter Name',
+  'approval.submitterComment': 'Submitter Comment',
+  'approval.reviewerName': 'Reviewer Name',
+  'approval.reviewerComment': 'Reviewer Comment',
+  'approval.status.created': 'CREATED',
+  'approval.status.withdrawn': 'WITHDRAWN',
+  'approval.status.submitted': 'SUBMITTED',
+  'approval.status.approved': 'APPROVED',
+  'approval.status.rejected': 'REJECTED',
+  'approval.status.canceled': 'CANCELED',
+  'approval.operation.create': 'Create Approval',
+  'approval.operation.withdraw': 'Withdraw Approval',
+  'approval.operation.submit': 'Submit Approval',
+  'approval.operation.approve': 'Approve Approval',
+  'approval.operation,reject': 'Reject Approval',
+  'approval.operation.cancel': 'Cancel Approval',
+  'approval.reviewer.required': 'Please select a reviewer',
+  'approval.submit.comment': 'Submit Remark',
+  'approval.review.comment': 'Review Comment',
+  'approval.taskInfo': 'Task Info'
 };

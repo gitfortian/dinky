@@ -23,6 +23,7 @@ import UDFRegister from '@/pages/RegCenter/UDF/components/UDFRegister';
 import TemplateTable from '@/pages/RegCenter/UDF/components/UDFTemplate/TemplateTable';
 import { l } from '@/utils/intl';
 import { PageContainer } from '@ant-design/pro-components';
+import { Alert } from 'antd';
 import * as React from 'react';
 
 export default () => {

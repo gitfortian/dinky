@@ -27,7 +27,9 @@ import org.dinky.daemon.task.DaemonTaskConfig;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * @operate
@@ -35,15 +37,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class FlinkJobThreadPool implements ThreadPool {
 
-    private static final int MAX_WORKER_NUM = 10;
-    private static final int DEFAULT_WORKER_NUM = 5;
+    private static final int MAX_WORKER_NUM = 20;
+    private static final int DEFAULT_WORKER_NUM = 1;
     private static final int MIN_WORKER_NUM = 1;
 
     private final List<TaskWorker> workers = Collections.synchronizedList(new ArrayList<>());
 
     private final Object lock = new Object();
 
-    private volatile AtomicInteger workerNum = new AtomicInteger(0);
+    private final AtomicInteger workerNum = new AtomicInteger(0);
 
     private final TaskQueue<DaemonTask> queue = new TaskQueue<>();
 
@@ -63,6 +65,28 @@ public class FlinkJobThreadPool implements ThreadPool {
     public void execute(DaemonTask daemonTask) {
         if (daemonTask != null) {
             queue.addTask(daemonTask);
+            resizeWorkers(queue.getTaskSize() / 10);
+        }
+    }
+
+    public DaemonTask removeByTaskConfig(DaemonTaskConfig daemonTask) {
+        DaemonTask removed = queue.removeByTaskConfig(daemonTask);
+        resizeWorkers(queue.getTaskSize() / 10);
+        return removed;
+    }
+
+    private void resizeWorkers(int afterNum) {
+        synchronized (lock) {
+            int workerNum = this.workerNum.get();
+
+            afterNum = Math.min(afterNum, MAX_WORKER_NUM);
+            afterNum = Math.max(afterNum, MIN_WORKER_NUM);
+
+            if (afterNum > workerNum) {
+                addWorkers(afterNum - workerNum);
+            } else if (afterNum < workerNum) {
+                removeWorker(workerNum - afterNum);
+            }
         }
     }
 
@@ -107,32 +131,14 @@ public class FlinkJobThreadPool implements ThreadPool {
         }
     }
 
-    @Override
-    public void shutdown() {
-        synchronized (lock) {
-            for (TaskWorker worker : workers) {
-                worker.shutdown();
-            }
-            workers.clear();
-        }
-    }
-
-    @Override
-    public int getTaskSize() {
-        return queue.getTaskSize();
-    }
-
     public DaemonTask getByTaskConfig(DaemonTaskConfig daemonTask) {
         return queue.getByTaskConfig(daemonTask);
     }
 
-    public DaemonTask removeByTaskConfig(DaemonTaskConfig daemonTask) {
-        return queue.removeByTaskConfig(daemonTask);
-    }
-
-    public int getWorkCount() {
-        synchronized (lock) {
-            return this.workerNum.get();
-        }
+    public Set<Integer> getCurrentMonitorTaskIds() {
+        return queue.getTasks().stream()
+                .map(DaemonTask::getConfig)
+                .map(DaemonTaskConfig::getTaskId)
+                .collect(Collectors.toSet());
     }
 }

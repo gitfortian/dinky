@@ -93,6 +93,7 @@ public enum Status {
     OFFLINE_FAILED(9036, "offline.failed"),
     VERSION_ROLLBACK_SUCCESS(9037, "version.rollback.success"),
     VERSION_ROLLBACK_FAILED(9038, "version.rollback.failed"),
+    NESTED_DEFINED_DENY(9039, "nested.defined.deny"),
 
     /**
      * user,tenant,role
@@ -171,6 +172,9 @@ public enum Status {
     // 清除库表缓存
     DATASOURCE_CLEAR_CACHE_SUCCESS(11005, "datasource.clear.cache.success"),
 
+    DATASOURCE_EXIST_RELATIONSHIP(11006, "datasource.exist.relationship"),
+
+    DATASOURCE_CONNECT_ERROR(11007, "datasource.connect.error"),
     /**
      * job or task about
      */
@@ -184,6 +188,16 @@ public enum Status {
     TASK_UPDATE_FAILED(12008, "task.update.failed"),
     TASK_IS_ONLINE(12009, "task.is.online"),
     TASK_IS_EXIST(12010, "task.is.existed"),
+    TASK_IS_PUBLISH_CANNOT_DELETE(12011, "task.is.publish.cannot.delete"),
+    TASK_IS_RUNNING_CANNOT_DELETE(12012, "task.is.running.cannot.delete"),
+    JOB_ALERT_MAX_SEND_COUNT(12013, "job.alert.max.send.count"),
+    MODE_IS_NOT_ALLOW_SELECT(12014, "mode.is.not.allow.select"),
+    OPERATE_NOT_SUPPORT_QUERY(12015, "operate.not.support.query"),
+    TASK_NOT_OPERATE_PERMISSION(12016, "task.not.operate.permission"),
+    CATALOGUE_NOT_EXIST(12017, "catalogue.not.exist"),
+    CATALOGUE_IS_EXIST(12018, "catalogue.is.exist"),
+    TASK_NAME_NOT_MATCH_CATALOGUE_NAME(12019, "task.name.not.match.catalogue.name"),
+    NAME_IS_EXIST(12021, "catalogue.name.not.exist"),
 
     /**
      * alert instance
@@ -200,6 +214,8 @@ public enum Status {
      * alert group
      */
     ALERT_GROUP_EXIST(14001, "alert.group.exist"),
+    //    "Alert group has relationship with other table, please delete the relationship first"
+    ALERT_GROUP_EXIST_RELATIONSHIP(14002, "alert.group.exist.relationship"),
 
     /**
      * cluster instance
@@ -209,6 +225,10 @@ public enum Status {
     CLUSTER_INSTANCE_KILL(15003, "cluster.instance.kill"),
     CLUSTER_INSTANCE_DEPLOY(15004, "cluster.instance.deploy"),
     CLUSTER_NOT_EXIST(15004, "cluster.not.exist"),
+    CLUSTER_INSTANCE_EXIST_RELATIONSHIP(15005, "cluster.instance.exist.relationship"),
+    CLUSTER_INSTANCE_LOCAL_NOT_SUPPORT_KILL(15006, "cluster.instance.local.not.support.kill"),
+    CLUSTER_INSTANCE_NOT_HEALTH(15007, "cluster.instance.not.health"),
+    CLUSTER_INSTANCE_HEALTH_NOT_DELETE(15008, "cluster.instance.health.not.delete"),
 
     /**
      * git
@@ -219,6 +239,7 @@ public enum Status {
     GIT_BRANCH_NOT_FOUND(16003, "git.branch.not.found"),
     GIT_BUILDING(16004, "git.building"),
     GIT_BUILD_SUCCESS(16005, "git.build.success"),
+    GIT_MAVEN_HOME_NOT_SET(16006, "git.maven.home.not.set"),
 
     /**
      * dolphin scheduler
@@ -249,6 +270,8 @@ public enum Status {
 
     LDAP_LOGIN_FORBID(18007, "ldap.login.forbid"),
 
+    LDAP_LOGIN_TEST_SUCCESS(18008, "ldap.login.test.success"),
+
     /**
      * datastudio about
      */
@@ -266,10 +289,35 @@ public enum Status {
     ALERT_RULE_CHECKPOINT_TIMEOUT(20006, "alert.rule.checkpointTimeout"),
 
     /**
+     * alert template
+     */
+    ALERT_TEMPLATE_EXIST_RELATIONSHIP(21001, "alert.template.exist.relationship"),
+
+    /**
+     * cluster config
+     */
+    CLUSTER_CONFIG_EXIST_RELATIONSHIP(22001, "cluster.config.exist.relationship"),
+
+    /**
+     * udf template
+     */
+    UDF_TEMPLATE_EXIST_RELATIONSHIP(23001, "udf.template.exist.relationship"),
+    UDF_SAVE_SUCCESS_PLACEHOLDER(23002, "udf.save.success.placeholder"),
+
+    /**
      * Resource
      */
     ROOT_DIR_NOT_ALLOW_DELETE(9031, "resource.root.dir.not.allow.delete"),
     RESOURCE_DIR_OR_FILE_NOT_EXIST(9032, "resource.dir.or.file.not.exist"),
+    RESOURCE_FILE_PATH_VISIT_FAILED(9033, "file.path.visit.failed"),
+    RESOURCE_HDFS_CONFIGURATION_ERROR(9034, "resource.hdfs.configuration.error"),
+    RESOURCE_FILE_UPLOAD_FAILED(9035, "file.upload.failed"),
+    RESOURCE_FILE_RENAME_FAILED(9036, "file.rename.failed"),
+    RESOURCE_FILE_DELETE_FAILED(9037, "file.delete.failed"),
+    RESOURCE_FILE_READ_FAILED(9038, "file.read.failed"),
+    RESOURCE_OSS_CONFIGURATION_ERROR(9039, "resource.oss.configuration.error"),
+    RESOURCE_ROOT_DIR_NOT_EXIST(9040, "resource.root.dir.not.exist"),
+    RESOURCE_FOLDER_EXISTS(9041, "resource.folder.exists"),
 
     /**
      * global exception
@@ -287,10 +335,10 @@ public enum Status {
     /**
      * system config
      */
+    SYS_GLOBAL_IS_FIRST(99, "sys.global.isFirst"),
+
     SYS_FLINK_SETTINGS_USERESTAPI(100, "sys.flink.settings.useRestAPI"),
     SYS_FLINK_SETTINGS_USERESTAPI_NOTE(101, "sys.flink.settings.useRestAPI.note"),
-    SYS_FLINK_SETTINGS_SQLSEPARATOR(102, "sys.flink.settings.sqlSeparator"),
-    SYS_FLINK_SETTINGS_SQLSEPARATOR_NOTE(103, "sys.flink.settings.sqlSeparator.note"),
     SYS_FLINK_SETTINGS_JOBIDWAIT(104, "sys.flink.settings.jobIdWait"),
     SYS_FLINK_SETTINGS_JOBIDWAIT_NOTE(105, "sys.flink.settings.jobIdWait.note"),
     SYS_MAVEN_SETTINGS_SETTINGSFILEPATH(106, "sys.maven.settings.settingsFilePath"),
@@ -306,10 +354,29 @@ public enum Status {
     SYS_ENV_SETTINGS_PYTHONHOME_NOTE(115, "sys.env.settings.pythonHome.note"),
     SYS_ENV_SETTINGS_DINKYADDR(116, "sys.env.settings.dinkyAddr"),
     SYS_ENV_SETTINGS_DINKYADDR_NOTE(117, "sys.env.settings.dinkyAddr.note"),
+
+    SYS_ENV_SETTINGS_DINKYTOKEN(116, "sys.env.settings.dinkyToken"),
+    SYS_ENV_SETTINGS_DINKYTOKEN_NOTE(117, "sys.env.settings.dinkyToken.note"),
+
+    SYS_ENV_SETTINGS_JOB_RESEND_DIFF_SECOND(118, "sys.env.settings.jobResendDiffSecond"),
+    SYS_ENV_SETTINGS_JOB_RESEND_DIFF_SECOND_NOTE(119, "sys.env.settings.jobResendDiffSecond.note"),
+
+    SYS_ENV_SETTINGS_DIFF_MINUTE_MAX_SEND_COUNT(120, "sys.env.settings.diffMinuteMaxSendCount"),
+    SYS_ENV_SETTINGS_DIFF_MINUTE_MAX_SEND_COUNT_NOTE(121, "sys.env.settings.diffMinuteMaxSendCount.note"),
+
+    SYS_ENV_SETTINGS_IS_OWNER_REFERENCE(122, "sys.env.settings.isOwnerReference"),
+    SYS_ENV_SETTINGS_IS_OWNER_REFERENCE_NOTE(123, "sys.env.settings.isOwnerReference.note"),
+
     SYS_ENV_SETTINGS_MAX_RETAIN_DAYS(1171, "sys.env.settings.maxRetainDays"),
     SYS_ENV_SETTINGS_MAX_RETAIN_DAYS_NOTE(1172, "sys.env.settings.maxRetainDays.note"),
     SYS_ENV_SETTINGS_MAX_RETAIN_COUNT(1173, "sys.env.settings.maxRetainCount"),
     SYS_ENV_SETTINGS_MAX_RETAIN_COUNT_NOTE(1174, "sys.env.settings.maxRetainCount.note"),
+    SYS_ENV_SETTINGS_EXPRESSION_VARIABLE(1175, "sys.env.settings.expressionVariable"),
+    SYS_ENV_SETTINGS_EXPRESSION_VARIABLE_NOTE(1176, "sys.env.settings.expressionVariable.note"),
+    SYS_ENV_SETTINGS_TASK_OWNER_LOCK_STRATEGY(1177, "sys.env.settings.taskOwnerLockStrategy"),
+    SYS_ENV_SETTINGS_TASK_OWNER_LOCK_STRATEGY_NOTE(1178, "sys.env.settings.taskOwnerLockStrategy.note"),
+    SYS_ENV_SETTINGS_TASK_OWNER_ALERT_STRATEGY(1179, "sys.env.settings.taskOwnerAlertStrategy"),
+    SYS_ENV_SETTINGS_TASK_OWNER_ALERT_STRATEGY_NOTE(1180, "sys.env.settings.taskOwnerAlertStrategy.note"),
 
     SYS_DOLPHINSCHEDULER_SETTINGS_ENABLE(118, "sys.dolphinscheduler.settings.enable"),
     SYS_DOLPHINSCHEDULER_SETTINGS_ENABLE_NOTE(119, "sys.dolphinscheduler.settings.enable.note"),
@@ -351,6 +418,8 @@ public enum Status {
     SYS_METRICS_SETTINGS_FLINK_GATHERTIMEOUT_NOTE(155, "sys.metrics.settings.flink.gatherTimeout.note"),
     SYS_RESOURCE_SETTINGS_ENABLE(156, "sys.resource.settings.base.enable"),
     SYS_RESOURCE_SETTINGS_ENABLE_NOTE(157, "sys.resource.settings.base.enable.note"),
+    SYS_RESOURCE_SETTINGS_PHYSICAL_DELETION(182, "sys.resource.settings.base.physicalDeletion"),
+    SYS_RESOURCE_SETTINGS_PHYSICAL_DELETION_NOTE(183, "sys.resource.settings.base.physicalDeletion.note"),
     SYS_RESOURCE_SETTINGS_UPLOAD_BASE_PATH(158, "sys.resource.settings.base.upload.base.path"),
     SYS_RESOURCE_SETTINGS_UPLOAD_BASE_PATH_NOTE(159, "sys.resource.settings.base.upload.base.path.note"),
     SYS_RESOURCE_SETTINGS_MODEL(160, "sys.resource.settings.base.model"),
@@ -369,14 +438,20 @@ public enum Status {
     SYS_RESOURCE_SETTINGS_HDFS_ROOT_USER_NOTE(173, "sys.resource.settings.hdfs.root.user.note"),
     SYS_RESOURCE_SETTINGS_HDFS_FS_DEFAULTFS(174, "sys.resource.settings.hdfs.fs.defaultFS"),
     SYS_RESOURCE_SETTINGS_HDFS_FS_DEFAULTFS_NOTE(175, "sys.resource.settings.hdfs.fs.defaultFS.note"),
+
+    SYS_RESOURCE_SETTINGS_HDFS_CORE_SITE(178, "sys.resource.settings.hdfs.core.site"),
+    SYS_RESOURCE_SETTINGS_HDFS_CORE_SITE_NOTE(179, "sys.resource.settings.hdfs.core.site.note"),
+    SYS_RESOURCE_SETTINGS_HDFS_HDFS_SITE(380, "sys.resource.settings.hdfs.hdfs.site"),
+    SYS_RESOURCE_SETTINGS_HDFS_HDFS_SITE_NOTE(381, "sys.resource.settings.hdfs.hdfs.site.note"),
+
     SYS_RESOURCE_SETTINGS_PATH_STYLE_ACCESS(176, "sys.resource.settings.oss.path.style.access"),
     SYS_RESOURCE_SETTINGS_PATH_STYLE_ACCESS_NOTE(177, "sys.resource.settings.oss.path.style.access.note"),
 
     /**
      * gateway config
      */
-    GAETWAY_KUBERNETS_TEST_FAILED(180, "gateway.kubernetes.test.failed"),
-    GAETWAY_KUBERNETS_TEST_SUCCESS(181, "gateway.kubernetes.test.success"),
+    GATEWAY_KUBERNETES_TEST_FAILED(180, "gateway.kubernetes.test.failed"),
+    GATEWAY_KUBERNETES_TEST_SUCCESS(181, "gateway.kubernetes.test.success"),
 
     /**
      * process
@@ -388,7 +463,34 @@ public enum Status {
     PROCESS_SUBMIT_EXECUTECOMMSQL(194, "process.submit.execute.commSql"),
     PROCESS_SUBMIT_EXECUTEFLINKSQL(195, "process.submit.execute.flinkSql"),
     PROCESS_REGISTER_EXITS(196, "process.register.exits"),
-    ;
+    PROCESS_CLEAR_LOG_SUCCESS(198, "process.clear.log.success"),
+    PROCESS_CLEAR_LOG_FAILED(199, "process.clear.log.failed"),
+
+    SYS_FLINK_SETTINGS_USE_FLINK_HISTORY_SERVER(200, "sys.flink.settings.useFlinkHistoryServer"),
+    SYS_FLINK_SETTINGS_USE_FLINK_HISTORY_SERVER_NOTE(201, "sys.flink.settings.useFlinkHistoryServer.note"),
+    SYS_FLINK_SETTINGS_FLINK_HISTORY_SERVER_PORT(202, "sys.flink.settings.flinkHistoryServerPort"),
+    SYS_FLINK_SETTINGS_FLINK_HISTORY_SERVER_PORT_NOTE(203, "sys.flink.settings.flinkHistoryServerPort.note"),
+    SYS_FLINK_SETTINGS_FLINK_HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL(
+            204, "sys.flink.settings.flinkHistoryServerArchiveRefreshInterval"),
+    SYS_FLINK_SETTINGS_FLINK_HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL_NOTE(
+            205, "sys.flink.settings.flinkHistoryServerArchiveRefreshInterval.note"),
+
+    /**
+     * approval
+     * */
+    SYS_APPROVAL_SETTINGS_ENABLE_TASK_SUBMIT_REVIEW(206, "sys.approval.settings.enableTaskSubmitReview"),
+    SYS_APPROVAL_SETTINGS_ENABLE_TASK_SUBMIT_REVIEW_NOTE(207, "sys.approval.settings.enableTaskSubmitReview.note"),
+    SYS_APPROVAL_SETTINGS_ENFORCE_CROSS_REVIEW(208, "sys.approval.settings.enforceCrossReview"),
+    SYS_APPROVAL_SETTINGS_ENFORCE_CROSS_REVIEW_NOTE(209, "sys.approval.settings.enforceCrossReview.note"),
+    SYS_APPROVAL_SETTINGS_TASK_REVIEWER_ROLES(210, "sys.approval.settings.taskReviewerRoles"),
+    SYS_APPROVAL_SETTINGS_TASK_REVIEWER_ROLES_NOTE(211, "sys.approval.settings.taskReviewerRoles.note"),
+    SYS_APPROVAL_TASK_NOT_APPROVED(212, "sys.approval.taskNotApproved"),
+    SYS_APPROVAL_DUPLICATE_APPROVAL_IN_PROCESS(213, "sys.approval.duplicateInProcess"),
+    /**
+     *  Catalog
+     */
+    SYS_CATALOG_ONLY_SUPPORT_FLINK_SQL_OPERATION(214, "sys.catalog.operationOnlySupportedOnFlinkSql");
+
     private final int code;
     private final String key;
 

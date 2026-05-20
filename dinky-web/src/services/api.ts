@@ -78,7 +78,7 @@ export async function getData(url: string, params?: any) {
 export async function removeData(url: string, params: [any]) {
   return request(url, {
     method: METHOD_CONSTANTS.DELETE,
-    data: {
+    params: {
       ...params
     }
   });
@@ -148,5 +148,33 @@ export async function getDataByRequestBody(url: string, body: any) {
   return request(url, {
     method: METHOD_CONSTANTS.POST,
     data: { ...body }
+  });
+}
+
+export async function download(url: string, params?: any) {
+  return request(url, {
+    method: METHOD_CONSTANTS.GET,
+    params: {
+      ...params
+    },
+    responseType: 'blob',
+    getResponse: true
+  }).then((res) => {
+    const { headers, data } = res;
+    const disposition = headers['content-disposition'];
+    const file_name =
+      disposition
+        .split(';')
+        .map((item) => item.trim())
+        .filter((item) => item.startsWith('filename='))
+        .map((item) => item.replaceAll('filename=', ''))
+        .shift() || '';
+    const blob = new Blob([data]);
+    const objectURL = URL.createObjectURL(blob);
+    let btn = document.createElement('a');
+    btn.download = file_name;
+    btn.href = objectURL;
+    btn.click();
+    URL.revokeObjectURL(objectURL);
   });
 }

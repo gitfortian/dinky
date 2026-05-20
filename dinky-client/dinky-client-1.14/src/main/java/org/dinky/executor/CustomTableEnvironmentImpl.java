@@ -19,25 +19,25 @@
 
 package org.dinky.executor;
 
-import org.dinky.assertion.Asserts;
+import org.dinky.data.exception.DinkyException;
+import org.dinky.data.job.JobStatement;
+import org.dinky.data.job.SqlType;
 import org.dinky.data.model.LineageRel;
 import org.dinky.data.result.SqlExplainResult;
 import org.dinky.parser.CustomParserImpl;
-import org.dinky.trans.ddl.CustomSetOperation;
 import org.dinky.utils.JsonUtils;
 import org.dinky.utils.LineageContext;
+import org.dinky.utils.SqlUtil;
 
+import org.apache.calcite.sql.SqlNode;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.JSONGenerator;
@@ -48,12 +48,13 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
@@ -62,44 +63,40 @@ import org.apache.flink.table.expressions.ExpressionParser;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.operations.ExplainOperation;
-import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
+import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.command.ResetOperation;
-import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.planner.delegation.DefaultExecutor;
-import org.apache.flink.table.typeutils.FieldInfoUtils;
-import org.apache.flink.types.Row;
 
-import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.URL;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.text.StrFormatter;
 import cn.hutool.core.util.ReflectUtil;
-import cn.hutool.core.util.URLUtil;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * 定制TableEnvironmentImpl
  *
  * @since 2021/10/22 10:02
  */
-@Slf4j
 public class CustomTableEnvironmentImpl extends AbstractCustomTableEnvironment {
+
+    private static final Logger log = LoggerFactory.getLogger(CustomTableEnvironmentImpl.class);
+
     private final CustomExtendedOperationExecutorImpl extendedExecutor = new CustomExtendedOperationExecutorImpl(this);
     private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
             "Unsupported SQL query! executeSql() only accepts a single SQL statement of type "
@@ -202,7 +199,12 @@ public class CustomTableEnvironmentImpl extends AbstractCustomTableEnvironment {
         }
     }
 
-    private static Executor lookupExecutor(
+    @Override
+    public SqlNode parseSql(String sql) {
+        return getParser().parseSql(sql);
+    }
+
+    protected static Executor lookupExecutor(
             ClassLoader classLoader, String executorIdentifier, StreamExecutionEnvironment executionEnvironment) {
         try {
             final ExecutorFactory executorFactory =
@@ -243,22 +245,9 @@ public class CustomTableEnvironmentImpl extends AbstractCustomTableEnvironment {
     }
 
     @Override
-    public void addJar(File... jarPath) {
-        Configuration configuration =
-                (Configuration) getStreamExecutionEnvironment().getConfiguration();
-        List<String> pathList =
-                Arrays.stream(URLUtil.getURLs(jarPath)).map(URL::toString).collect(Collectors.toList());
-        List<String> jars = configuration.get(PipelineOptions.JARS);
-        if (jars != null) {
-            CollUtil.addAll(jars, pathList);
-        }
-        Map<String, Object> flinkConfigurationMap = getFlinkConfigurationMap();
-        flinkConfigurationMap.put(PipelineOptions.JARS.key(), jars);
-    }
-
-    @Override
     public <T> void addConfiguration(ConfigOption<T> option, T value) {
         Map<String, Object> flinkConfigurationMap = getFlinkConfigurationMap();
+        getConfig().addConfiguration(new Configuration().set(option, value));
         flinkConfigurationMap.put(option.key(), value);
     }
 
@@ -278,132 +267,77 @@ public class CustomTableEnvironmentImpl extends AbstractCustomTableEnvironment {
     }
 
     @Override
-    public JobPlanInfo getJobPlanInfo(List<String> statements) {
+    public JobPlanInfo getJobPlanInfo(List<JobStatement> statements) {
         return new JobPlanInfo(JsonPlanGenerator.generatePlan(getJobGraphFromInserts(statements)));
     }
 
     @Override
-    public StreamGraph getStreamGraphFromInserts(List<String> statements) {
-        List<ModifyOperation> modifyOperations = new ArrayList();
-        for (String statement : statements) {
-            List<Operation> operations = getParser().parse(statement);
-            if (operations.size() != 1) {
-                throw new TableException("Only single statement is supported.");
-            } else {
-                Operation operation = operations.get(0);
-                if (operation instanceof ModifyOperation) {
-                    modifyOperations.add((ModifyOperation) operation);
-                } else {
-                    throw new TableException("Only insert statement is supported now.");
-                }
-            }
+    public StreamGraph getStreamGraphFromInserts(List<JobStatement> statements) {
+        statements.removeIf(statement -> statement.getSqlType().equals(SqlType.CTAS));
+        statements.removeIf(statement -> statement.getSqlType().equals(SqlType.RTAS));
+        List<ModifyOperation> modifyOperations = new ArrayList<>();
+        statements.stream()
+                .map(statement -> getParser().parse(statement.getStatement()))
+                .forEach(operations -> {
+                    if (operations.size() != 1) {
+                        throw new TableException("Only single statement is supported.");
+                    }
+                    Operation operation = operations.get(0);
+                    if (operation instanceof ModifyOperation) {
+                        modifyOperations.add((ModifyOperation) operation);
+                    } else if (operation instanceof QueryOperation) {
+                        final UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(
+                                "Unregistered_Collect_Sink_" + CollectModifyOperation.getUniqueId());
+                        final ObjectIdentifier objectIdentifier =
+                                getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
+                        modifyOperations.add(new CollectModifyOperation(objectIdentifier, (QueryOperation) operation));
+                    } else {
+                        log.info("Only insert statement is supported now. The statement is skipped: "
+                                + operation.asSummaryString());
+                    }
+                });
+        if (modifyOperations.isEmpty()) {
+            throw new TableException("Only insert statement is supported now. None operation to execute.");
         }
-        List<Transformation<?>> trans = getPlanner().translate(modifyOperations);
-        if (executor instanceof DefaultExecutor) {
-            StreamGraph streamGraph =
-                    ((DefaultExecutor) executor).getExecutionEnvironment().generateStreamGraph(trans);
-            if (getConfig().getConfiguration().containsKey(PipelineOptions.NAME.key())) {
-                streamGraph.setJobName(getConfig().getConfiguration().getString(PipelineOptions.NAME));
-            }
-            return streamGraph;
-        } else {
-            throw new TableException("Unsupported SQL query! ExecEnv need a ExecutorBase.");
-        }
+        return transOperatoinsToStreamGraph(modifyOperations);
     }
 
-    @Override
-    public JobGraph getJobGraphFromInserts(List<String> statements) {
-        return getStreamGraphFromInserts(statements).getJobGraph();
+    private StreamGraph transOperatoinsToStreamGraph(List<ModifyOperation> modifyOperations) {
+        List<Transformation<?>> trans = getPlanner().translate(modifyOperations);
+        final StreamExecutionEnvironment environment = getStreamExecutionEnvironment();
+        trans.forEach(environment::addOperator);
+
+        StreamGraph streamGraph = environment.getStreamGraph();
+        final Configuration configuration = getConfig().getConfiguration();
+        if (configuration.containsKey(PipelineOptions.NAME.key())) {
+            streamGraph.setJobName(configuration.getString(PipelineOptions.NAME));
+        }
+        return streamGraph;
     }
 
     @Override
     public SqlExplainResult explainSqlRecord(String statement, ExplainDetail... extraDetails) {
-        SqlExplainResult record = new SqlExplainResult();
         List<Operation> operations = getParser().parse(statement);
-        record.setParseTrue(true);
         if (operations.size() != 1) {
             throw new TableException("Unsupported SQL query! explainSql() only accepts a single SQL query.");
         }
 
         Operation operation = operations.get(0);
+        SqlExplainResult data = new SqlExplainResult();
+        data.setParseTrue(true);
+        data.setExplainTrue(true);
         if (operation instanceof ModifyOperation) {
-            record.setType("Modify DML");
-        } else if (operation instanceof ExplainOperation) {
-            record.setType("Explain DML");
+            data.setType("DML");
         } else if (operation instanceof QueryOperation) {
-            record.setType("Query DML");
+            data.setType("DQL");
         } else {
-            record.setExplain(operation.asSummaryString());
-            record.setType("DDL");
+            data.setExplain(operation.asSummaryString());
+            data.setType("DDL");
+            return data;
         }
-        record.setExplainTrue(true);
-        if ("DDL".equals(record.getType())) {
-            // record.setExplain("DDL语句不进行解释。");
-            return record;
-        }
-        record.setExplain(getPlanner().explain(operations, extraDetails));
-        return record;
-    }
 
-    @Override
-    public boolean parseAndLoadConfiguration(String statement, Map<String, Object> setMap) {
-        List<Operation> operations = getParser().parse(statement);
-        for (Operation operation : operations) {
-            if (operation instanceof SetOperation) {
-                callSet((SetOperation) operation, getStreamExecutionEnvironment(), setMap);
-                return true;
-            } else if (operation instanceof ResetOperation) {
-                callReset((ResetOperation) operation, getStreamExecutionEnvironment(), setMap);
-                return true;
-            } else if (operation instanceof CustomSetOperation) {
-                CustomSetOperation customSetOperation = (CustomSetOperation) operation;
-                if (customSetOperation.isValid()) {
-                    callSet(
-                            new SetOperation(customSetOperation.getKey(), customSetOperation.getValue()),
-                            getStreamExecutionEnvironment(),
-                            setMap);
-                }
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void callSet(
-            SetOperation setOperation, StreamExecutionEnvironment environment, Map<String, Object> setMap) {
-        if (setOperation.getKey().isPresent() && setOperation.getValue().isPresent()) {
-            String key = setOperation.getKey().get().trim();
-            String value = setOperation.getValue().get().trim();
-            if (Asserts.isNullString(key) || Asserts.isNullString(value)) {
-                return;
-            }
-            Map<String, String> confMap = new HashMap<>();
-            confMap.put(key, value);
-            setMap.put(key, value);
-            Configuration configuration = Configuration.fromMap(confMap);
-            environment.getConfig().configure(configuration, null);
-            environment.getCheckpointConfig().configure(configuration);
-            getConfig().addConfiguration(configuration);
-        }
-    }
-
-    private void callReset(
-            ResetOperation resetOperation, StreamExecutionEnvironment environment, Map<String, Object> setMap) {
-        if (resetOperation.getKey().isPresent()) {
-            String key = resetOperation.getKey().get().trim();
-            if (Asserts.isNullString(key)) {
-                return;
-            }
-            Map<String, String> confMap = new HashMap<>();
-            confMap.put(key, null);
-            setMap.remove(key);
-            Configuration configuration = Configuration.fromMap(confMap);
-            environment.getConfig().configure(configuration, null);
-            environment.getCheckpointConfig().configure(configuration);
-            getConfig().addConfiguration(configuration);
-        } else {
-            setMap.clear();
-        }
+        data.setExplain(getPlanner().explain(Collections.singletonList(operation), extraDetails));
+        return data;
     }
 
     @Override
@@ -424,42 +358,8 @@ public class CustomTableEnvironmentImpl extends AbstractCustomTableEnvironment {
     }
 
     @Override
-    public <T> void createTemporaryView(String s, DataStream<Row> dataStream, List<String> columnNameList) {
-        createTemporaryView(s, fromChangelogStream(dataStream));
-    }
-
-    @Override
     public <T> void createTemporaryView(String path, DataStream<T> dataStream, Expression... fields) {
         createTemporaryView(path, fromDataStream(dataStream, fields));
-    }
-
-    private <T> JavaDataStreamQueryOperation<T> asQueryOperation(
-            DataStream<T> dataStream, Optional<List<Expression>> fields) {
-        TypeInformation<T> streamType = dataStream.getType();
-
-        // get field names and types for all non-replaced fields
-        FieldInfoUtils.TypeInfoSchema typeInfoSchema = fields.map(f -> {
-                    FieldInfoUtils.TypeInfoSchema fieldsInfo =
-                            FieldInfoUtils.getFieldsInfo(streamType, f.toArray(new Expression[0]));
-
-                    // check if event-time is enabled
-                    validateTimeCharacteristic(fieldsInfo.isRowtimeDefined());
-                    return fieldsInfo;
-                })
-                .orElseGet(() -> FieldInfoUtils.getFieldsInfo(streamType));
-
-        return new JavaDataStreamQueryOperation<>(
-                dataStream, typeInfoSchema.getIndices(), typeInfoSchema.toResolvedSchema());
-    }
-
-    private void validateTimeCharacteristic(boolean isRowtimeDefined) {
-        if (isRowtimeDefined
-                && getStreamExecutionEnvironment().getStreamTimeCharacteristic() != TimeCharacteristic.EventTime) {
-            throw new ValidationException(String.format(
-                    "A rowtime attribute requires an EventTime time characteristic in"
-                            + " stream environment. But is: %s",
-                    getStreamExecutionEnvironment().getStreamTimeCharacteristic()));
-        }
     }
 
     @Override
@@ -480,5 +380,99 @@ public class CustomTableEnvironmentImpl extends AbstractCustomTableEnvironment {
             return tableResult.get();
         }
         return super.executeInternal(operation);
+    }
+
+    @Override
+    public SqlExplainResult explainStatementSet(List<JobStatement> statements, ExplainDetail... extraDetails) {
+        SqlExplainResult.Builder resultBuilder = SqlExplainResult.Builder.newBuilder();
+        List<Operation> operations = new ArrayList<>();
+        for (JobStatement statement : statements) {
+            if (statement.getSqlType().equals(SqlType.CTAS)) {
+                resultBuilder
+                        .sql(statement.getStatement())
+                        .type(statement.getSqlType().getType())
+                        .error("CTAS is not supported in Apache Flink 1.15.")
+                        .parseTrue(false)
+                        .explainTrue(false)
+                        .explainTime(LocalDateTime.now());
+                return resultBuilder.build();
+            }
+            if (statement.getSqlType().equals(SqlType.RTAS)) {
+                resultBuilder
+                        .sql(statement.getStatement())
+                        .type(statement.getSqlType().getType())
+                        .error("RTAS is not supported in Apache Flink 1.14.")
+                        .parseTrue(false)
+                        .explainTrue(false)
+                        .explainTime(LocalDateTime.now());
+                return resultBuilder.build();
+            }
+            try {
+                List<Operation> itemOperations = getParser().parse(statement.getStatement());
+                if (!itemOperations.isEmpty()) {
+                    for (Operation operation : itemOperations) {
+                        operations.add(operation);
+                    }
+                }
+            } catch (Exception e) {
+                String error = StrFormatter.format(
+                        "Exception in explaining FlinkSQL:\n{}\n{}",
+                        SqlUtil.addLineNumber(statement.getStatement()),
+                        e.getMessage());
+                resultBuilder
+                        .sql(statement.getStatement())
+                        .type(SqlType.INSERT.getType())
+                        .error(error)
+                        .parseTrue(false)
+                        .explainTrue(false)
+                        .explainTime(LocalDateTime.now());
+                log.error(error);
+                return resultBuilder.build();
+            }
+        }
+        if (operations.isEmpty()) {
+            throw new DinkyException("None of the job in the statement set.");
+        }
+        resultBuilder.parseTrue(true);
+        resultBuilder.explain(getPlanner().explain(operations, extraDetails));
+        return resultBuilder
+                .explainTrue(true)
+                .explainTime(LocalDateTime.now())
+                .type(SqlType.INSERT.getType())
+                .build();
+    }
+
+    @Override
+    public TableResult executeStatementSet(List<JobStatement> statements) {
+        statements.removeIf(statement -> statement.getSqlType().equals(SqlType.CTAS));
+        statements.removeIf(statement -> statement.getSqlType().equals(SqlType.RTAS));
+        statements.removeIf(statement -> !statement.getSqlType().isSinkyModify());
+        List<ModifyOperation> modifyOperations = statements.stream()
+                .map(statement -> getModifyOperationFromInsert(statement.getStatement()))
+                .collect(Collectors.toList());
+        return executeInternal(modifyOperations);
+    }
+
+    public ModifyOperation getModifyOperationFromInsert(String statement) {
+        List<Operation> operations = getParser().parse(statement);
+        if (operations.isEmpty()) {
+            throw new TableException("None of the statement is parsed.");
+        }
+        if (operations.size() > 1) {
+            throw new TableException("Only single statement is supported.");
+        }
+        Operation operation = operations.get(0);
+        if (operation instanceof ModifyOperation) {
+            return (ModifyOperation) operation;
+        } else if (operation instanceof QueryOperation) {
+            final UnresolvedIdentifier unresolvedIdentifier =
+                    UnresolvedIdentifier.of("Unregistered_Collect_Sink_" + CollectModifyOperation.getUniqueId());
+            final ObjectIdentifier objectIdentifier = getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
+            return new CollectModifyOperation(objectIdentifier, (QueryOperation) operation);
+        } else {
+            log.info("Only insert statement or select is supported now. The statement is skipped: "
+                    + operation.asSummaryString());
+            return null;
+        }
     }
 }

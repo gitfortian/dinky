@@ -19,6 +19,7 @@
 
 package org.dinky.data.model;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -32,13 +33,19 @@ public class FlinkCDCConfig {
 
     public static final String SINK_DB = "sink.db";
     public static final String AUTO_CREATE = "auto.create";
+    public static final String AUTO_CREATE_OPTIONS = "auto.create.options";
     public static final String TABLE_PREFIX = "table.prefix";
     public static final String TABLE_SUFFIX = "table.suffix";
     public static final String TABLE_UPPER = "table.upper";
     public static final String TABLE_LOWER = "table.lower";
     public static final String TABLE_RENAME = "table.rename";
-    public static final String COLUMN_REPLACE_LINE_BREAK = "column.replace.line-break";
     public static final String TIMEZONE = "timezone";
+    // 表映射 类似 flink cdc route 映射功能
+    public static final String TABLE_MAPPING_ROUTES = "table.mapping-routes";
+    // 表名 正则表达式替换 pattern 表达式， 替换规则 with
+    public static final String TABLE_REPLACE_PATTERN = "table.replace.pattern";
+    public static final String TABLE_REPLACE_WITH = "table.replace.with";
+
     private String type;
     private String hostname;
     private Integer port;
@@ -59,6 +66,7 @@ public class FlinkCDCConfig {
     private List<Map<String, String>> sinks;
     private List<Schema> schemaList;
     private String schemaFieldName;
+    private boolean isMockTest;
 
     public FlinkCDCConfig(
             String type,
@@ -133,19 +141,27 @@ public class FlinkCDCConfig {
         this.sink = sink;
         this.sinks = sinks;
         this.jdbc = jdbc;
+        this.isMockTest = false;
     }
 
     private boolean isSkip(String key) {
+        if (key.equals("url")) {
+            return !(sink.containsKey("connector")
+                    && Arrays.asList("jdbc", "clickhouse").contains(sink.get("connector")));
+        }
         switch (key) {
             case SINK_DB:
             case AUTO_CREATE:
+            case AUTO_CREATE_OPTIONS:
             case TABLE_PREFIX:
             case TABLE_SUFFIX:
             case TABLE_UPPER:
             case TABLE_LOWER:
             case TABLE_RENAME:
-            case COLUMN_REPLACE_LINE_BREAK:
             case TIMEZONE:
+            case TABLE_REPLACE_PATTERN:
+            case TABLE_REPLACE_WITH:
+            case TABLE_MAPPING_ROUTES:
                 return true;
             default:
                 return false;
@@ -153,6 +169,9 @@ public class FlinkCDCConfig {
     }
 
     public String getSinkConfigurationString() {
+        if (isMockTest) {
+            return "'connector' = 'dinky-mock'";
+        }
         return sink.entrySet().stream()
                 .filter(t -> !isSkip(t.getKey()))
                 .map(t -> String.format("'%s' = '%s'", t.getKey(), t.getValue()))
@@ -313,5 +332,13 @@ public class FlinkCDCConfig {
 
     public void setSplit(Map<String, String> split) {
         this.split = split;
+    }
+
+    public boolean isMockTest() {
+        return isMockTest;
+    }
+
+    public void setMockTest(boolean mockTest) {
+        isMockTest = mockTest;
     }
 }

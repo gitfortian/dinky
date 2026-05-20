@@ -18,7 +18,7 @@
  */
 
 import { ThemeCloud, ThemeStar } from '@/components/ThemeSvg/ThemeSvg';
-import { LANGUAGE_KEY, LANGUAGE_ZH, STORY_LANGUAGE, VERSION } from '@/services/constants';
+import { LANGUAGE_KEY, LANGUAGE_ZH, SERVER_VERSION, STORY_LANGUAGE } from '@/services/constants';
 import { THEME } from '@/types/Public/data';
 import { useLocalStorage } from '@/utils/hook/useLocalStorage';
 import { l } from '@/utils/intl';
@@ -29,6 +29,7 @@ import React, { useEffect, useState } from 'react';
 import useCookie from 'react-use-cookie';
 import screenfull from 'screenfull';
 import Avatar from './AvatarDropdown';
+import { getValueFromLocalStorage } from '@/utils/function';
 
 const GlobalHeaderRight: React.FC = () => {
   /**
@@ -67,7 +68,7 @@ const GlobalHeaderRight: React.FC = () => {
   /**
    * css
    */
-  const actionClassName = {
+  const actionClassName: any = {
     display: 'flex',
     float: 'right',
     justifyContent: 'center',
@@ -114,7 +115,7 @@ const GlobalHeaderRight: React.FC = () => {
     style: fullScreenClassName
   };
 
-  const menuVersion = l('menu.version', '', { version: VERSION });
+  const menuVersion = l('menu.version', '', { version: getValueFromLocalStorage(SERVER_VERSION) });
   return (
     <>
       <Tooltip
@@ -122,9 +123,9 @@ const GlobalHeaderRight: React.FC = () => {
         title={<span>{fullScreen ? l('global.fullScreen') : l('global.fullScreen.exit')}</span>}
       >
         {fullScreen ? (
-          <FullscreenOutlined {...fullScreenProps} onClick={screenFull} />
+          <FullscreenOutlined {...(fullScreenProps as any)} onClick={screenFull} />
         ) : (
-          <FullscreenExitOutlined {...fullScreenProps} onClick={screenFull} />
+          <FullscreenExitOutlined {...(fullScreenProps as any)} onClick={screenFull} />
         )}
       </Tooltip>
       <Tooltip placement='bottom' title={<span>{menuVersion}</span>}>

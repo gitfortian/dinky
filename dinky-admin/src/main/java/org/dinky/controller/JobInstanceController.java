@@ -49,6 +49,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaIgnore;
 import cn.hutool.core.lang.Dict;
 import io.swagger.annotations.Api;
@@ -68,6 +69,7 @@ import lombok.extern.slf4j.Slf4j;
 @Api(tags = "Job Instance Controller")
 @RequestMapping("/api/jobInstance")
 @RequiredArgsConstructor
+@SaCheckLogin
 public class JobInstanceController {
     private final JobInstanceService jobInstanceService;
 
@@ -165,7 +167,11 @@ public class JobInstanceController {
             required = true)
     public Result<JobInfoDetail> refreshJobInfoDetail(
             @RequestParam Integer id, @RequestParam(defaultValue = "false") boolean isForce) {
-        return Result.succeed(jobInstanceService.refreshJobInfoDetail(id, isForce));
+        JobInstance jobInstance = jobInstanceService.getById(id);
+        if (jobInstance == null) {
+            return Result.failed(Status.JOB_INSTANCE_NOT_EXIST);
+        }
+        return Result.succeed(jobInstanceService.refreshJobInfoDetail(id, jobInstance.getTaskId(), isForce));
     }
 
     /**

@@ -40,6 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.dev33.satoken.annotation.SaMode;
 import cn.dev33.satoken.stp.StpLogic;
@@ -56,10 +57,12 @@ import lombok.extern.slf4j.Slf4j;
 @Api(tags = "Token Controller")
 @RestController
 @RequestMapping("/api/token")
+@SaCheckLogin
 @RequiredArgsConstructor
 public class TokenController {
 
     private final TokenService tokenService;
+    private final org.dinky.service.impl.TokenService tokenServiceStp;
     private final StpLogic stpLogic;
 
     /**
@@ -90,9 +93,13 @@ public class TokenController {
             mode = SaMode.OR)
     public Result<Void> saveOrUpdateToken(@RequestBody SysToken sysToken) {
         sysToken.setSource(SysToken.Source.CUSTOM);
-        return tokenService.saveOrUpdate(sysToken)
+        Result<Void> result = tokenService.saveOrUpdate(sysToken)
                 ? Result.succeed(Status.SAVE_SUCCESS)
                 : Result.failed(Status.SAVE_FAILED);
+        if (result.isSuccess()) {
+            tokenServiceStp.injectToken(sysToken);
+        }
+        return result;
     }
 
     /**

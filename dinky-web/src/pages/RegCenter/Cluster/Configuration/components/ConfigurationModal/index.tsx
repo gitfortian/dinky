@@ -17,6 +17,7 @@
  *
  */
 
+import { LoadingBtn } from '@/components/CallBackButton/LoadingBtn';
 import { FormContextValue } from '@/components/Context/FormContext';
 import ConfigurationForm from '@/pages/RegCenter/Cluster/Configuration/components/ConfigurationModal/ConfigurationForm';
 import { Cluster } from '@/types/RegCenter/data';
@@ -30,9 +31,10 @@ type ConfigurationModalProps = {
   onClose: () => void;
   value: Partial<Cluster.Config>;
   onSubmit: (values: Partial<Cluster.Config>) => void;
+  onHeartBeat: (values: Partial<Cluster.Config>) => void;
 };
-const InstanceModal: React.FC<ConfigurationModalProps> = (props) => {
-  const { visible, onClose, onSubmit, value } = props;
+export default (props: ConfigurationModalProps) => {
+  const { visible, onClose, onSubmit, value, onHeartBeat } = props;
 
   /**
    * init form
@@ -71,19 +73,36 @@ const InstanceModal: React.FC<ConfigurationModalProps> = (props) => {
   const submitForm = async () => {
     const fieldsValue = await form.validateFields();
     setSubmitting(true);
-    await onSubmit(fieldsValue);
+    onSubmit(fieldsValue);
     handleCancel();
   };
 
   /**
+   * handle test connect
+   * */
+  const handleTestConnect = async () => {
+    const fieldsValue = await form.validateFields();
+    onHeartBeat(fieldsValue);
+  };
+
+  /**
    * render footer
-   * @returns {[JSX.Element, JSX.Element]}
    */
   const renderFooter = () => {
     return [
       <Button key={'cancel'} onClick={() => handleCancel()}>
         {l('button.cancel')}
       </Button>,
+      <LoadingBtn
+        key={'test'}
+        props={{
+          size: 'middle',
+          type: 'primary',
+          style: { background: '#52c41a' }
+        }}
+        click={handleTestConnect}
+        title={l('button.test.connection')}
+      />,
       <Button
         key={'finish'}
         loading={submitting}
@@ -92,7 +111,7 @@ const InstanceModal: React.FC<ConfigurationModalProps> = (props) => {
         autoFocus
         onClick={() => submitForm()}
       >
-        {l('button.finish')}
+        {l('button.save')}
       </Button>
     ];
   };
@@ -104,11 +123,14 @@ const InstanceModal: React.FC<ConfigurationModalProps> = (props) => {
         open={visible}
         modalProps={{
           onCancel: handleCancel,
-          bodyStyle: {
-            maxHeight: '70vh',
-            overflowY: 'auto',
-            overflowX: 'hidden'
-          }
+          styles: {
+            body: {
+              maxHeight: '70vh',
+              overflowY: 'auto',
+              overflowX: 'hidden'
+            }
+          },
+          maskClosable: false
         }}
         title={value.id ? l('rc.cc.modify') : l('rc.cc.create')}
         submitter={{ render: () => [...renderFooter()] }}
@@ -120,5 +142,3 @@ const InstanceModal: React.FC<ConfigurationModalProps> = (props) => {
     </>
   );
 };
-
-export default InstanceModal;

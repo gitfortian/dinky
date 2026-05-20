@@ -31,6 +31,7 @@ import { handleInitEditorAndLanguageOnBeforeMount } from '@/components/CustomEdi
 import { Editor, loader, Monaco } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import { CSSProperties, useRef, useState } from 'react';
+import LineNumbersType = editor.LineNumbersType;
 
 loader.config({ monaco });
 
@@ -38,15 +39,18 @@ export type CodeShowFormProps = {
   height?: string | number;
   width?: string;
   language?: EditorLanguage | string;
-  options?: any;
+  options?: editor.IStandaloneEditorConstructionOptions;
   code: string;
-  lineNumbers?: string;
+  lineNumbers?: LineNumbersType;
   enableMiniMap?: boolean;
-  autoWrap?: string;
+  autoWrap?: 'on' | 'off' | 'wordWrapColumn' | 'bounded' | undefined;
   showFloatButton?: boolean;
   refreshLogCallback?: () => void;
   fullScreenBtn?: boolean;
+  enableAutoScroll?: boolean;
   style?: CSSProperties;
+  clearContent?: () => void;
+  btnExtraContent?: any;
 };
 
 const CodeShow = (props: CodeShowFormProps) => {
@@ -74,12 +78,13 @@ const CodeShow = (props: CodeShowFormProps) => {
     showFloatButton = false,
     refreshLogCallback,
     fullScreenBtn = false,
-    enableMiniMap = false
+    enableMiniMap = false,
+    enableAutoScroll = false,
+    clearContent,
+    btnExtraContent
   } = props;
 
   const { ScrollType } = editor;
-
-  const [scrollBeyondLastLine] = useState<boolean>(options.scrollBeyondLastLine);
 
   const [loading, setLoading] = useState<boolean>(false);
   const [stopping, setStopping] = useState<boolean>(false);
@@ -166,6 +171,10 @@ const CodeShow = (props: CodeShowFormProps) => {
     return URL.createObjectURL(blob);
   };
 
+  const handleWrap = () => {
+    editorInstance?.current?.updateOptions({ wordWrap: 'on' });
+  };
+
   /**
    *  editorDidMount
    * @param {editor.IStandaloneCodeEditor} editor
@@ -176,7 +185,7 @@ const CodeShow = (props: CodeShowFormProps) => {
     monacoInstance.current = monaco;
     editor.layout();
     editor.focus();
-    if (scrollBeyondLastLine) {
+    if (enableAutoScroll) {
       editor.onDidChangeModelContent(() => {
         const lineCount = editor.getModel()?.getLineCount() as number;
         if (lineCount > 20) {
@@ -200,7 +209,10 @@ const CodeShow = (props: CodeShowFormProps) => {
     handleBackBottom,
     handleUpScroll,
     handleDownScroll,
-    handleDownloadLog
+    handleDownloadLog,
+    handleWrap,
+    clearContent,
+    btnExtraContent
   };
 
   /**
@@ -208,7 +220,7 @@ const CodeShow = (props: CodeShowFormProps) => {
    */
   return (
     <>
-      <Row wrap={false}>
+      <Row wrap={false} style={{ height: '100%' }}>
         <Col flex='auto'>
           {/* fullScreen button */}
           {fullScreenBtn && (
@@ -227,7 +239,7 @@ const CodeShow = (props: CodeShowFormProps) => {
             value={code ?? ''}
             language={language}
             options={{
-              scrollBeyondLastLine: false,
+              scrollBeyondLastLine: enableAutoScroll,
               readOnly: true,
               glyphMargin: false,
               wordWrap: autoWrap,

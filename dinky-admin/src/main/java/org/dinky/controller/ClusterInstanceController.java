@@ -42,6 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.dev33.satoken.annotation.SaMode;
 import io.swagger.annotations.Api;
@@ -56,6 +57,7 @@ import lombok.extern.slf4j.Slf4j;
 @Api(tags = "ClusterInstance Instance Controller")
 @RequestMapping("/api/cluster")
 @RequiredArgsConstructor
+@SaCheckLogin
 public class ClusterInstanceController {
 
     private final ClusterInstanceService clusterInstanceService;
@@ -65,7 +67,6 @@ public class ClusterInstanceController {
      *
      * @param clusterInstanceDTO {@link ClusterInstanceDTO} cluster instance
      * @return {@link Result}<{@link Void}>
-     * @throws Exception exception
      */
     @PutMapping
     @Log(title = "Insert Or Update Cluster Instance", businessType = BusinessType.INSERT_OR_UPDATE)
@@ -83,8 +84,7 @@ public class ClusterInstanceController {
                 PermissionConstants.REGISTRATION_CLUSTER_INSTANCE_ADD
             },
             mode = SaMode.OR)
-    public Result<Void> saveOrUpdateClusterInstance(@RequestBody ClusterInstanceDTO clusterInstanceDTO)
-            throws Exception {
+    public Result<Void> saveOrUpdateClusterInstance(@RequestBody ClusterInstanceDTO clusterInstanceDTO) {
         if (clusterInstanceDTO.getAutoRegisters() == null) {
             clusterInstanceDTO.setAutoRegisters(false);
         }
@@ -197,26 +197,8 @@ public class ClusterInstanceController {
     @Log(title = "Cluster Instance Heartbeat", businessType = BusinessType.UPDATE)
     @ApiOperation("Cluster Instance Heartbeat")
     @SaCheckPermission(value = {PermissionConstants.REGISTRATION_CLUSTER_INSTANCE_HEARTBEATS})
-    public Result<Void> heartbeat() {
-        List<ClusterInstance> clusterInstances = clusterInstanceService.list();
-        for (ClusterInstance clusterInstance : clusterInstances) {
-            clusterInstanceService.registersCluster(clusterInstance);
-        }
-        return Result.succeed(Status.CLUSTER_INSTANCE_HEARTBEAT_SUCCESS);
-    }
-
-    /**
-     * recycle cluster instances
-     *
-     * @return {@link Result}<{@link Integer}>
-     */
-    @DeleteMapping("/recycle")
-    @Log(title = "Cluster Instance Recycle", businessType = BusinessType.DELETE)
-    @ApiOperation("Cluster Instance Recycle")
-    @Transactional(rollbackFor = Exception.class)
-    @SaCheckPermission(value = {PermissionConstants.REGISTRATION_CLUSTER_INSTANCE_RECYCLE})
-    public Result<Integer> recycleCluster() {
-        return Result.succeed(clusterInstanceService.recycleCluster(), Status.CLUSTER_INSTANCE_RECYCLE_SUCCESS);
+    public Result<Long> heartbeat() {
+        return Result.succeed(clusterInstanceService.heartbeat(), Status.CLUSTER_INSTANCE_HEARTBEAT_SUCCESS);
     }
 
     /**
@@ -225,7 +207,7 @@ public class ClusterInstanceController {
      * @param id {@link Integer} cluster instance id
      * @return {@link Result}<{@link Void}>
      */
-    @GetMapping("/killCluster")
+    @PutMapping("/killCluster")
     @Log(title = "Cluster Instance Kill", businessType = BusinessType.UPDATE)
     @ApiOperation("Cluster Instance Kill")
     @ApiImplicitParam(

@@ -19,8 +19,10 @@
 
 package org.dinky.data.dto;
 
-import org.dinky.gateway.enums.GatewayType;
+import org.dinky.data.enums.GatewayType;
 import org.dinky.job.JobConfig;
+
+import com.google.common.collect.Maps;
 
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
@@ -67,10 +69,11 @@ public class StudioMetaStoreDTO extends AbstractStatementDTO {
     public JobConfig getJobConfig() {
         return JobConfig.builder()
                 .type(GatewayType.LOCAL.getLongValue())
+                .configJson(Maps.newHashMap())
                 .useResult(true)
                 .useChangeLog(false)
                 .useAutoCancel(false)
-                .fragment(getFragment())
+                .fragment(isFragment())
                 .statementSet(false)
                 .batchModel(false)
                 .maxRowNum(0)

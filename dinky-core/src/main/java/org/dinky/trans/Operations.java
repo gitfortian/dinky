@@ -19,7 +19,7 @@
 
 package org.dinky.trans;
 
-import org.dinky.parser.SqlType;
+import org.dinky.data.job.SqlType;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
@@ -68,9 +68,9 @@ public class Operations {
                         throw new RuntimeException(e);
                     } catch (NoClassDefFoundError e) {
                         log.warn(
-                                "getAllOperations error,  If you do not have this class, please add the corresponding dependency. Operation: {}.",
+                                "getAllOperations error,  If you do not have this class, please add the corresponding dependency. Operation: {}.{}",
                                 t,
-                                e);
+                                e.getMessage());
                         return null;
                     }
                 })

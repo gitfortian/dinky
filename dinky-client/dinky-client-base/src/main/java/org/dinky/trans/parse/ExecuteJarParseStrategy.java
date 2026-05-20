@@ -19,53 +19,20 @@
 
 package org.dinky.trans.parse;
 
-import org.dinky.parser.SqlSegment;
 import org.dinky.trans.dml.ExecuteJarOperation;
 
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.parse.AbstractRegexParseStrategy;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.bean.copier.CopyOptions;
-import cn.hutool.core.util.StrUtil;
-
 public class ExecuteJarParseStrategy extends AbstractRegexParseStrategy {
-    private static final String PATTERN_STR = "^EXECUTE\\s+JAR\\s+WITH\\s+\\(\\s+(.*\\s+)+\\)";
+    private static final String PATTERN_STR = "(\\n *|^ *)EXECUTE\\s+JAR\\s+WITH\\s*\\(.+\\)\\s*;?\\s*";
     private static final Pattern PATTERN = Pattern.compile(PATTERN_STR, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     public static final ExecuteJarParseStrategy INSTANCE = new ExecuteJarParseStrategy();
 
     public ExecuteJarParseStrategy() {
         super(PATTERN);
-    }
-
-    public static ExecuteJarOperation.JarSubmitParam getInfo(String statement) {
-        statement = statement.replace("\r\n", " ").replace("\n", " ") + " ENDOFSQL";
-        SqlSegment sqlSegment = new SqlSegment("with", "(with\\s+\\()(.+)(\\))", "',");
-        sqlSegment.parse(statement);
-        List<String> bodyPieces = sqlSegment.getBodyPieces();
-        Map<String, String> keyValue = getKeyValue(bodyPieces);
-        return BeanUtil.toBean(
-                keyValue,
-                ExecuteJarOperation.JarSubmitParam.class,
-                CopyOptions.create().setFieldNameEditor(s -> StrUtil.toCamelCase(s, '-')));
-    }
-
-    private static Map<String, String> getKeyValue(List<String> list) {
-        Map<String, String> map = new HashMap<>();
-        Pattern p = Pattern.compile("'(.*?)'\\s*=\\s*'(.*?)'");
-        for (String s : list) {
-            Matcher m = p.matcher(s + "'");
-            if (m.find()) {
-                map.put(m.group(1), m.group(2));
-            }
-        }
-        return map;
     }
 
     @Override
@@ -76,5 +43,13 @@ public class ExecuteJarParseStrategy extends AbstractRegexParseStrategy {
     @Override
     public String[] getHints() {
         return new String[0];
+    }
+
+    public boolean find(String statement) {
+        return PATTERN.matcher(statement.trim()).find();
+    }
+
+    public String replaceAll(String statement, String replacement) {
+        return PATTERN.matcher(statement).replaceAll(replacement);
     }
 }

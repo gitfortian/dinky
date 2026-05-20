@@ -21,12 +21,15 @@ package org.dinky.metadata.driver;
 
 import org.dinky.assertion.Asserts;
 import org.dinky.data.model.Column;
+import org.dinky.data.model.QueryData;
 import org.dinky.data.model.Table;
 import org.dinky.data.result.SqlExplainResult;
+import org.dinky.data.types.DataTypes;
 import org.dinky.metadata.ast.Clickhouse20CreateTableStatement;
-import org.dinky.metadata.config.AbstractJdbcConfig;
+import org.dinky.metadata.convert.AbstractJdbcTypeConvert;
 import org.dinky.metadata.convert.ClickHouseTypeConvert;
-import org.dinky.metadata.convert.ITypeConvert;
+import org.dinky.metadata.enums.ClickHouseDataTypeEnum;
+import org.dinky.metadata.enums.DriverType;
 import org.dinky.metadata.parser.Clickhouse20StatementParser;
 import org.dinky.metadata.query.ClickHouseQuery;
 import org.dinky.metadata.query.IDBQuery;
@@ -37,9 +40,8 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -50,16 +52,19 @@ import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
 import com.alibaba.druid.sql.parser.ParserException;
 import com.alibaba.druid.sql.parser.Token;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * ClickHouseDriver
  *
  * @since 2021/7/21 17:14
  */
+@Slf4j
 public class ClickHouseDriver extends AbstractJdbcDriver {
 
     @Override
     String getDriverClass() {
-        return "ru.yandex.clickhouse.ClickHouseDriver";
+        return "com.clickhouse.jdbc.ClickHouseDriver";
     }
 
     @Override
@@ -68,13 +73,13 @@ public class ClickHouseDriver extends AbstractJdbcDriver {
     }
 
     @Override
-    public ITypeConvert<AbstractJdbcConfig> getTypeConvert() {
+    public AbstractJdbcTypeConvert getTypeConvert() {
         return new ClickHouseTypeConvert();
     }
 
     @Override
     public String getType() {
-        return "ClickHouse";
+        return DriverType.CLICKHOUSE.getValue();
     }
 
     @Override
@@ -120,7 +125,9 @@ public class ClickHouseDriver extends AbstractJdbcDriver {
                 preparedStatement = conn.get().prepareStatement("explain " + current);
                 results = preparedStatement.executeQuery();
                 while (results.next()) {
-                    explain.append(getTypeConvert().convertValue(results, "explain", "string") + "\r\n");
+                    explain.append(
+                            getTypeConvert().convertValue(results, "explain", DataTypes.STRING.toColumnType(true))
+                                    + "\r\n");
                 }
                 sqlExplainResults.add(SqlExplainResult.success(type, current, explain.toString()));
             }
@@ -166,8 +173,26 @@ public class ClickHouseDriver extends AbstractJdbcDriver {
     }
 
     @Override
-    public Map<String, String> getFlinkColumnTypeConversion() {
-        return new HashMap<>();
+    public StringBuilder genQueryOption(QueryData queryData) {
+        StringBuilder optionBuilder = new StringBuilder()
+                .append("select * from ")
+                .append(queryData.getSchemaName())
+                .append(".")
+                .append(queryData.getTableName());
+        if (Asserts.isNotNull(queryData.getOption())) {
+            String where = queryData.getOption().getWhere();
+            if (Asserts.isNotNullString(where)) {
+                optionBuilder.append(" where ").append(where);
+            }
+            String order = queryData.getOption().getOrder();
+            if (Asserts.isNotNullString(order)) {
+                optionBuilder.append(" order by ").append(order);
+            }
+            int limitStart = queryData.getOption().getLimitStart();
+            int limitEnd = queryData.getOption().getLimitEnd();
+            optionBuilder.append(" limit ").append(limitStart).append(",").append(limitEnd);
+        }
+        return optionBuilder;
     }
 
     @Override
@@ -195,26 +220,8 @@ public class ClickHouseDriver extends AbstractJdbcDriver {
                 field.setName(columnName);
                 if (columnList.contains(dbQuery.columnType())) {
                     String columnType = results.getString(dbQuery.columnType());
-                    if (columnType.indexOf("Nullable") >= 0) {
-                        field.setNullable(true);
-                        columnType = columnType.replaceAll("Nullable\\(", "").replaceAll("\\)", "");
-                    }
-                    if (columnType.contains("(")) {
-                        String type = columnType.replaceAll("\\(.*\\)", "");
-                        if (!columnType.contains(",")) {
-                            Integer length = Integer.valueOf(columnType.replaceAll("\\D", ""));
-                            field.setLength(length);
-                        } else {
-                            // some database does not have precision
-                            if (dbQuery.precision() != null) {
-                                // 例如浮点类型的长度和精度是一样的，decimal(10,2)
-                                field.setLength(results.getInt(dbQuery.precision()));
-                            }
-                        }
-                        field.setType(type);
-                    } else {
-                        field.setType(columnType);
-                    }
+                    field.setNullable(ClickHouseDataTypeEnum.isNullable(columnType));
+                    field.setType(columnType);
                 }
                 if (columnList.contains(dbQuery.columnComment())
                         && Asserts.isNotNull(results.getString(dbQuery.columnComment()))) {
@@ -222,42 +229,27 @@ public class ClickHouseDriver extends AbstractJdbcDriver {
                             results.getString(dbQuery.columnComment()).replaceAll("\"|'", "");
                     field.setComment(columnComment);
                 }
-                if (columnList.contains(dbQuery.columnLength())) {
-                    int length = results.getInt(dbQuery.columnLength());
-                    if (!results.wasNull()) {
-                        field.setLength(length);
-                    }
-                }
-                if (columnList.contains(dbQuery.characterSet())) {
-                    field.setCharacterSet(results.getString(dbQuery.characterSet()));
-                }
-                if (columnList.contains(dbQuery.collation())) {
-                    field.setCollation(results.getString(dbQuery.collation()));
-                }
                 if (columnList.contains(dbQuery.columnPosition())) {
                     field.setPosition(results.getInt(dbQuery.columnPosition()));
                 }
-                if (columnList.contains(dbQuery.precision())) {
-                    field.setPrecision(results.getInt(dbQuery.precision()));
+                ClickHouseDataTypeEnum clickHouseDataTypeEnum = ClickHouseDataTypeEnum.of(field.getType());
+                Integer length = clickHouseDataTypeEnum.getLength(field.getType());
+                if (Objects.nonNull(length)) {
+                    field.setLength(length);
                 }
-                if (columnList.contains(dbQuery.scale())) {
-                    field.setScale(results.getInt(dbQuery.scale()));
+                Integer scale = clickHouseDataTypeEnum.getScale(field.getType());
+                if (Objects.nonNull(scale)) {
+                    field.setScale(scale);
                 }
-                if (columnList.contains(dbQuery.defaultValue())) {
-                    field.setDefaultValue(results.getString(dbQuery.defaultValue()));
+                Integer precision = clickHouseDataTypeEnum.getPrecision(field.getType());
+                if (Objects.nonNull(precision)) {
+                    field.setPrecision(precision);
                 }
-                if (columnList.contains(dbQuery.autoIncrement())) {
-                    field.setAutoIncrement(
-                            Asserts.isEqualsIgnoreCase(results.getString(dbQuery.autoIncrement()), "auto_increment"));
-                }
-                if (columnList.contains(dbQuery.defaultValue())) {
-                    field.setDefaultValue(results.getString(dbQuery.defaultValue()));
-                }
-                field.setJavaType(getTypeConvert().convert(field, config));
+                field.setDataType(getTypeConvert().convert(field));
                 columns.add(field);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.error("ClickHouseDriver listColumns error.", e);
         } finally {
             close(preparedStatement, results);
         }

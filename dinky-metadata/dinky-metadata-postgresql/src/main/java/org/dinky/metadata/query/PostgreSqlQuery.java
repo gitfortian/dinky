@@ -49,10 +49,29 @@ public class PostgreSqlQuery extends AbstractDBQuery {
     }
 
     @Override
+    public String tablesSql(String schemaName, String tableName) {
+        return "SELECT n.nspname              AS schema_name\n"
+                + "     , c.relname              AS tablename\n"
+                + "     , obj_description(c.oid) AS comments\n"
+                + "     , c.reltuples            as rows\n"
+                + "FROM pg_class c\n"
+                + "         LEFT JOIN pg_namespace n ON n.oid = c.relnamespace\n"
+                + "WHERE ((c.relkind = 'r'::\"char\") OR (c.relkind = 'f'::\"char\") OR"
+                + " (c.relkind = 'p'::\"char\"))\n"
+                + "  AND n.nspname = '"
+                + schemaName + "'"
+                + " AND c.relname = '"
+                + tableName
+                + "'\n"
+                + "ORDER BY n.nspname, tablename";
+    }
+
+    @Override
     public String columnsSql(String schemaName, String tableName) {
 
-        return "SELECT col.column_name                              as name\n"
-                + "     , col.character_maximum_length                 as length\n"
+        return "SELECT col.column_name                                 as name\n"
+                + "     , COALESCE(col.character_maximum_length,datetime_precision)"
+                + "                                                    as length\n"
                 + "     , col.is_nullable                              as is_nullable\n"
                 + "     , col.numeric_precision                        as numeric_precision\n"
                 + "     , col.numeric_scale                            as numeric_scale\n"
@@ -60,9 +79,9 @@ public class PostgreSqlQuery extends AbstractDBQuery {
                 + "     , col.udt_name                                 as type\n"
                 + "     , (CASE  WHEN (SELECT COUNT(*) FROM pg_constraint AS PC WHERE b.attnum"
                 + " = ANY(PC.conkey) AND PC.contype = 'p' and PC.conrelid = c.oid) > 0 \n"
-                + "THEN 'PRI' ELSE '' END)                            AS key\n"
-                + "     , col_description(c.oid, col.ordinal_position) AS comment\n"
-                + "     , col.column_default                           AS column_default\n"
+                + "THEN 'PRI' ELSE '' END)                             as key\n"
+                + "     , col_description(c.oid, col.ordinal_position) as comment\n"
+                + "     , col.column_default                           as column_default\n"
                 + "FROM information_schema.columns AS col\n"
                 + "         LEFT JOIN pg_namespace ns ON ns.nspname = col.table_schema\n"
                 + "         LEFT JOIN pg_class c ON col.table_name = c.relname AND"

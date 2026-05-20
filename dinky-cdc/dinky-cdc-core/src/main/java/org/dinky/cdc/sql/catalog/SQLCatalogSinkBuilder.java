@@ -22,23 +22,21 @@ package org.dinky.cdc.sql.catalog;
 import org.dinky.cdc.SinkBuilder;
 import org.dinky.cdc.sql.AbstractSqlSinkBuilder;
 import org.dinky.cdc.utils.FlinkStatementUtil;
+import org.dinky.data.flink.table.FlinkTableObjectIdentifier;
 import org.dinky.data.model.FlinkCDCConfig;
 import org.dinky.data.model.Table;
-import org.dinky.executor.CustomTableEnvironment;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.table.types.logical.DateType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UniqueConstraint;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.types.Row;
 
 import java.io.Serializable;
-import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Optional;
-
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SQLCatalogSinkBuilder extends AbstractSqlSinkBuilder implements Serializable {
 
@@ -51,29 +49,32 @@ public class SQLCatalogSinkBuilder extends AbstractSqlSinkBuilder implements Ser
     }
 
     @Override
-    protected void initTypeConverterList() {
-        typeConverterList = Lists.newArrayList(
-                this::convertDateType,
-                this::convertTimestampType,
-                this::convertDecimalType,
-                this::convertBigIntType,
-                this::convertVarBinaryType);
-    }
-
-    @Override
-    public void addTableSink(
-            CustomTableEnvironment customTableEnvironment, DataStream<Row> rowDataDataStream, Table table) {
+    public void addTableSink(DataStream<Row> rowDataDataStream, Table table) {
 
         String catalogName = config.getSink().get("catalog.name");
         String sinkSchemaName = getSinkSchemaName(table);
         String tableName = getSinkTableName(table);
-        String sinkTableName = catalogName + "." + sinkSchemaName + "." + tableName;
-        String viewName = "VIEW_" + table.getSchemaTableNameWithUnderline();
-
-        customTableEnvironment.createTemporaryView(viewName, rowDataDataStream);
+        // Because the name of the view on Flink is not allowed to have -, it needs to be replaced with - here_
+        String viewName = replaceViewNameMiddleLineToUnderLine("VIEW_" + table.getSchemaTableNameWithUnderline());
+        final ResolvedSchema resolvedSchema =
+                customTableEnvironment.fromChangelogStream(rowDataDataStream).getResolvedSchema();
+        List<Column> columns = new ArrayList<>();
+        for (Column column : resolvedSchema.getColumns()) {
+            columns.add(column.copy(new AtomicDataType(
+                    column.getDataType().getLogicalType().copy(false),
+                    column.getDataType().getConversionClass())));
+        }
+        final UniqueConstraint primaryKey = UniqueConstraint.primaryKey(viewName + "_pk", table.getPrimaryKeys());
+        final ResolvedSchema sinkSchema = new ResolvedSchema(columns, resolvedSchema.getWatermarkSpecs(), primaryKey);
+        final Schema schema = Schema.newBuilder().fromResolvedSchema(sinkSchema).build();
+        customTableEnvironment.createTemporaryView(
+                viewName, customTableEnvironment.fromChangelogStream(rowDataDataStream, schema));
         logger.info("Create {} temporaryView successful...", viewName);
 
-        createInsertOperations(customTableEnvironment, table, viewName, sinkTableName);
+        createInsertOperations(
+                table,
+                FlinkTableObjectIdentifier.of(viewName),
+                FlinkTableObjectIdentifier.of(catalogName, sinkSchemaName, tableName));
     }
 
     @Override
@@ -86,48 +87,8 @@ public class SQLCatalogSinkBuilder extends AbstractSqlSinkBuilder implements Ser
         return new SQLCatalogSinkBuilder(config);
     }
 
-    protected void executeCatalogStatement(CustomTableEnvironment customTableEnvironment) {
-        logger.info("Build catalog successful...");
+    protected void executeCatalogStatement() {
         customTableEnvironment.executeSql(FlinkStatementUtil.getCreateCatalogStatement(config));
-    }
-
-    @Override
-    protected String createTableName(LinkedHashMap source, String schemaFieldName, Map<String, String> split) {
-        return source.get(schemaFieldName).toString() + "."
-                + source.get("table").toString();
-    }
-
-    @Override
-    protected Optional<Object> convertDateType(Object value, LogicalType logicalType) {
-        if (logicalType instanceof DateType) {
-            if (value instanceof Integer) {
-                return Optional.of(Instant.ofEpochMilli(((Integer) value).longValue())
-                        .atZone(sinkTimeZone)
-                        .toLocalDate());
-            }
-            return Optional.of(
-                    Instant.ofEpochMilli((long) value).atZone(sinkTimeZone).toLocalDate());
-        }
-        return Optional.empty();
-    }
-
-    @Override
-    protected Optional<Object> convertTimestampType(Object value, LogicalType logicalType) {
-        if (logicalType instanceof TimestampType) {
-            if (value instanceof Integer) {
-                return Optional.of(Instant.ofEpochMilli(((Integer) value).longValue())
-                        .atZone(sinkTimeZone)
-                        .toLocalDateTime());
-            }
-
-            if (value instanceof String) {
-                return Optional.of(
-                        Instant.parse((String) value).atZone(sinkTimeZone).toLocalDateTime());
-            }
-
-            return Optional.of(
-                    Instant.ofEpochMilli((long) value).atZone(sinkTimeZone).toLocalDateTime());
-        }
-        return Optional.empty();
+        logger.info("Build catalog successful...");
     }
 }

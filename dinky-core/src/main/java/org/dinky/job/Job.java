@@ -19,10 +19,10 @@
 
 package org.dinky.job;
 
+import org.dinky.data.enums.GatewayType;
 import org.dinky.data.result.IResult;
 import org.dinky.executor.Executor;
 import org.dinky.executor.ExecutorConfig;
-import org.dinky.gateway.enums.GatewayType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -54,6 +54,7 @@ public class Job {
     private Executor executor;
     private boolean useGateway;
     private List<String> jids;
+    private boolean isPipeline = false;
 
     @Getter
     public enum JobStatus {
@@ -113,7 +114,8 @@ public class Job {
                 error,
                 result,
                 startTime,
-                endTime);
+                endTime,
+                isPipeline);
     }
 
     public boolean isFailed() {

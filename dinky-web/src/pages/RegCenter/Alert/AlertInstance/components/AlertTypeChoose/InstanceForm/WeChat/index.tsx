@@ -19,7 +19,7 @@
 
 import { FormSingleColumnList } from '@/components/FormSingleColumnList';
 import { SWITCH_OPTIONS } from '@/services/constants';
-import { Alert } from '@/types/RegCenter/data';
+import { Alert } from '@/types/RegCenter/data.d';
 import { l } from '@/utils/intl';
 import {
   ProForm,
@@ -86,6 +86,7 @@ const WeChat = (props: WeChatProps) => {
           label={l('rc.ai.sendType')}
           initialValue={sendType ?? 'app'}
           fieldProps={{
+            value: sendType,
             onChange: (e) => setSendType(e.target.value)
           }}
           options={[

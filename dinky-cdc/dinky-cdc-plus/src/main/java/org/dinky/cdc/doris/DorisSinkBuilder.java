@@ -29,10 +29,8 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
-import org.apache.doris.flink.sink.writer.RowDataSerializer;
-import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
+import org.apache.doris.flink.sink.writer.serializer.RowDataSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -68,7 +66,6 @@ public class DorisSinkBuilder extends AbstractSinkBuilder implements Serializabl
 
     @Override
     public void addSink(
-            StreamExecutionEnvironment env,
             DataStream<RowData> rowDataDataStream,
             Table table,
             List<String> columnNameList,
@@ -185,7 +182,7 @@ public class DorisSinkBuilder extends AbstractSinkBuilder implements Serializabl
         DorisSink.Builder<RowData> builder = DorisSink.builder();
         builder.setDorisReadOptions(readOptionBuilder.build())
                 .setDorisExecutionOptions(executionBuilder.build())
-                .setSerializer((DorisRecordSerializer<RowData>) RowDataSerializer.builder()
+                .setSerializer(RowDataSerializer.builder()
                         .setFieldNames(columnNames)
                         .setType("json")
                         .enableDelete(true)

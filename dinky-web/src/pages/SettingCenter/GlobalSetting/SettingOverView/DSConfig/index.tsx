@@ -22,13 +22,9 @@ import { BaseConfigProperties } from '@/types/SettingCenter/data';
 import { l } from '@/utils/intl';
 import { Tag } from 'antd';
 import React from 'react';
+import { GeneralComponentConfigProps } from '@/pages/SettingCenter/GlobalSetting/data.d';
 
-interface DSConfigProps {
-  data: BaseConfigProperties[];
-  onSave: (data: BaseConfigProperties) => void;
-}
-
-export const DSConfig = ({ data, onSave }: DSConfigProps) => {
+export const DSConfig = ({ data, onSave, auth }: GeneralComponentConfigProps) => {
   const [loading, setLoading] = React.useState(false);
 
   const onSaveHandler = async (data: BaseConfigProperties) => {
@@ -38,10 +34,10 @@ export const DSConfig = ({ data, onSave }: DSConfigProps) => {
   };
   return (
     <>
-      {/*tooltip={l('sys.setting.ds.tooltip')}*/}
       <GeneralConfig
         loading={loading}
         onSave={onSaveHandler}
+        auth={auth}
         tag={
           <>
             <Tag color={'default'}>{l('sys.setting.tag.integration')}</Tag>

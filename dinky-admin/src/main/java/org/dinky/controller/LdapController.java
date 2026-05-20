@@ -25,7 +25,6 @@ import org.dinky.data.dto.UserDTO;
 import org.dinky.data.enums.BusinessType;
 import org.dinky.data.enums.Status;
 import org.dinky.data.exception.AuthException;
-import org.dinky.data.model.SystemConfiguration;
 import org.dinky.data.model.rbac.User;
 import org.dinky.data.result.Result;
 import org.dinky.service.LdapService;
@@ -42,7 +41,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import cn.dev33.satoken.annotation.SaIgnore;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
@@ -62,19 +61,13 @@ public class LdapController {
     @Autowired
     UserService userService;
 
-    @GetMapping("/ldapEnableStatus")
-    @SaIgnore
-    @ApiOperation("Get LDAP enable status")
-    public Result<Boolean> ldapStatus() {
-        return Result.succeed(SystemConfiguration.getInstances().getLdapEnable().getValue());
-    }
-
     @GetMapping("/testConnection")
     @ApiOperation("Test connection to LDAP server")
+    @SaCheckLogin
     @Log(title = "Test connection to LDAP server", businessType = BusinessType.TEST)
     public Result<Integer> testConnection() {
         List<User> users = ldapService.listUsers();
-        if (users.size() > 0) {
+        if (!users.isEmpty()) {
             return Result.succeed(users.size());
         } else {
             return Result.failed(Status.LDAP_NO_USER_FOUND);
@@ -83,10 +76,12 @@ public class LdapController {
 
     @GetMapping("/listUser")
     @ApiOperation("List user from LDAP server")
+    @SaCheckLogin
     public Result<List<User>> listUser() {
         List<User> users = ldapService.listUsers();
         List<User> localUsers = userService.list();
 
+        // 已经存在的用户不可导入 | Existing users cannot be imported
         users.stream()
                 .filter(ldapUser ->
                         localUsers.stream().anyMatch(user -> user.getUsername().equals(ldapUser.getUsername())))
@@ -97,6 +92,7 @@ public class LdapController {
 
     @PostMapping("/importUsers")
     @ApiOperation("Import users from LDAP server")
+    @SaCheckLogin
     @Log(title = "Import users from LDAP server", businessType = BusinessType.IMPORT)
     @ApiImplicitParam(name = "users", value = "User list", required = true, dataType = "List<User>")
     public Result<Void> importUsers(@RequestBody List<User> users) {
@@ -114,12 +110,13 @@ public class LdapController {
      * @return {@link Result}{@link UserDTO} obtain the user's UserDTO
      */
     @PostMapping("/testLogin")
+    @SaCheckLogin
     @ApiOperation("Test login to LDAP server")
     @Log(title = "Test login to LDAP server", businessType = BusinessType.TEST)
     @ApiImplicitParam(name = "loginDTO", value = "Login information", required = true, dataType = "LoginDTO")
     public Result<User> login(@RequestBody LoginDTO loginDTO) {
         try {
-            return Result.succeed(ldapService.authenticate(loginDTO));
+            return Result.succeed(ldapService.authenticate(loginDTO), Status.LDAP_LOGIN_TEST_SUCCESS);
         } catch (AuthException e) {
             return Result.failed(e.getStatus());
         } catch (NamingException e) {

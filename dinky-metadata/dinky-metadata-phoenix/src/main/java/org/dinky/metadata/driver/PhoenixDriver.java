@@ -19,13 +19,14 @@
 
 package org.dinky.metadata.driver;
 
+import org.dinky.assertion.Asserts;
 import org.dinky.data.model.Column;
 import org.dinky.data.model.QueryData;
 import org.dinky.data.model.Table;
-import org.dinky.metadata.config.AbstractJdbcConfig;
 import org.dinky.metadata.constant.PhoenixConstant;
-import org.dinky.metadata.convert.ITypeConvert;
+import org.dinky.metadata.convert.AbstractJdbcTypeConvert;
 import org.dinky.metadata.convert.PhoenixTypeConvert;
+import org.dinky.metadata.enums.DriverType;
 import org.dinky.metadata.query.IDBQuery;
 import org.dinky.metadata.query.PhoenixQuery;
 import org.dinky.metadata.result.JdbcSelectResult;
@@ -46,7 +47,7 @@ public class PhoenixDriver extends AbstractJdbcDriver {
     }
 
     @Override
-    public ITypeConvert<AbstractJdbcConfig> getTypeConvert() {
+    public AbstractJdbcTypeConvert getTypeConvert() {
         return new PhoenixTypeConvert();
     }
 
@@ -57,29 +58,31 @@ public class PhoenixDriver extends AbstractJdbcDriver {
 
     @Override
     public String getType() {
-        return "Phoenix";
+        return DriverType.PHOENIX.getValue();
     }
 
-    /** sql拼接，目前还未实现limit方法 */
+    /** Phoenix sql拼接，支持LIMIT语法 */
     @Override
     public StringBuilder genQueryOption(QueryData queryData) {
-
-        String where = queryData.getOption().getWhere();
-        String order = queryData.getOption().getOrder();
-
         StringBuilder optionBuilder = new StringBuilder()
                 .append("select * from ")
                 .append(queryData.getSchemaName())
                 .append(".")
                 .append(queryData.getTableName());
 
-        if (where != null && !where.equals("")) {
-            optionBuilder.append(" where ").append(where);
+        if (Asserts.isNotNull(queryData.getOption())) {
+            String where = queryData.getOption().getWhere();
+            if (Asserts.isNotNullString(where)) {
+                optionBuilder.append(" where ").append(where);
+            }
+            String order = queryData.getOption().getOrder();
+            if (Asserts.isNotNullString(order)) {
+                optionBuilder.append(" order by ").append(order);
+            }
+            int limitStart = queryData.getOption().getLimitStart();
+            int limitEnd = queryData.getOption().getLimitEnd();
+            optionBuilder.append(" limit ").append(limitStart).append(",").append(limitEnd);
         }
-        if (order != null && !order.equals("")) {
-            optionBuilder.append(" order by ").append(order);
-        }
-
         return optionBuilder;
     }
 
@@ -102,7 +105,7 @@ public class PhoenixDriver extends AbstractJdbcDriver {
                         .append("\".\"")
                         .append(column.getName())
                         .append("\"  ")
-                        .append(phoenixTypeConvert.convertToDB(column));
+                        .append(phoenixTypeConvert.convertToDB(column.getDataType()));
             }
         }
         sql.append(" ) ");

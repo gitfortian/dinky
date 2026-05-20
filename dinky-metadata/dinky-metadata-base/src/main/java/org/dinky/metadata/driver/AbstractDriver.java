@@ -21,12 +21,14 @@ package org.dinky.metadata.driver;
 
 import org.dinky.assertion.Asserts;
 import org.dinky.data.model.Column;
+import org.dinky.data.model.QueryData;
 import org.dinky.data.model.Schema;
 import org.dinky.data.model.Table;
 import org.dinky.metadata.config.DriverConfig;
 import org.dinky.metadata.config.IConnectConfig;
 import org.dinky.metadata.convert.ITypeConvert;
 import org.dinky.metadata.query.IDBQuery;
+import org.dinky.metadata.result.JdbcSelectResult;
 
 import java.util.List;
 import java.util.Map;
@@ -45,6 +47,14 @@ public abstract class AbstractDriver<T extends IConnectConfig> implements Driver
 
     public abstract ITypeConvert<T> getTypeConvert();
 
+    @Override
+    public JdbcSelectResult query(QueryData queryData) {
+        StringBuilder queryOption = genQueryOption(queryData);
+        return query(queryOption.toString(), null);
+    }
+
+    public abstract StringBuilder genQueryOption(QueryData queryData);
+
     public boolean canHandle(String type) {
         return Asserts.isEqualsIgnoreCase(getType(), type);
     }
@@ -60,16 +70,9 @@ public abstract class AbstractDriver<T extends IConnectConfig> implements Driver
                 .collect(Collectors.toList());
     }
 
-    public List<Table> getTablesAndColumns(String schema) {
-        return listTables(schema).stream()
-                .peek(table -> table.setColumns(listColumns(schema, table.getName())))
-                .sorted()
-                .collect(Collectors.toList());
-    }
-
     @Override
     public Table getTable(String schemaName, String tableName) {
-        List<Table> tables = listTables(schemaName);
+        List<Table> tables = listTables(schemaName, tableName);
         Table table = null;
         for (Table item : tables) {
             if (Asserts.isEquals(item.getName(), tableName)) {
@@ -119,5 +122,10 @@ public abstract class AbstractDriver<T extends IConnectConfig> implements Driver
     @Override
     public List<Map<String, String>> getSplitSchemaList() {
         throw new RuntimeException("该数据源暂不支持分库分表");
+    }
+
+    @Override
+    public long count(String schemaName, String tableName) {
+        return 0;
     }
 }

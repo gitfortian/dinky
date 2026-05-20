@@ -17,17 +17,17 @@
  *
  */
 
-import { cancelTask, restartTask, savePointTask } from '@/pages/DataStudio/HeaderContainer/service';
-import { JOB_LIFE_CYCLE } from '@/pages/DevOps/constants';
+import { cancelTask, savePointTask } from '@/pages/DataStudio/service';
 import { isStatusDone } from '@/pages/DevOps/function';
 import EditJobInstanceForm from '@/pages/DevOps/JobDetail/JobOperator/components/EditJobInstanceForm';
+import RestartForm from '@/pages/DevOps/JobDetail/JobOperator/components/RestartForm';
+import { API_CONSTANTS } from '@/services/endpoints';
 import { Jobs } from '@/types/DevOps/data';
 import { l } from '@/utils/intl';
 import { EllipsisOutlined, RedoOutlined } from '@ant-design/icons';
 import { Button, Dropdown, message, Modal, Space } from 'antd';
 
 const operatorType = {
-  RESTART_JOB: 'restart',
   CANCEL_JOB: 'canceljob',
   SAVEPOINT_CANCEL: 'cancel',
   SAVEPOINT_TRIGGER: 'trigger',
@@ -40,7 +40,11 @@ export type OperatorType = {
 };
 const JobOperator = (props: OperatorType) => {
   const { jobDetail, refesh } = props;
-  const webUri = `/api/flink/${jobDetail?.history?.jobManagerAddress}/#/job/running/${jobDetail?.instance?.jid}/overview`;
+  const jobManagerHost = jobDetail?.clusterInstance?.jobManagerHost;
+  const webUri =
+    jobManagerHost?.startsWith('http://') || jobManagerHost?.startsWith('https://')
+      ? jobManagerHost
+      : `${API_CONSTANTS.BASE_URL}/api/flink/${jobManagerHost}/#/job/running/${jobDetail?.instance?.jid}/overview`;
 
   const handleJobOperator = (key: string) => {
     Modal.confirm({
@@ -50,21 +54,15 @@ const JobOperator = (props: OperatorType) => {
       cancelText: l('button.cancel'),
       onOk: async () => {
         if (key == operatorType.CANCEL_JOB) {
-          cancelTask('', jobDetail?.instance?.taskId, false);
-        } else if (key == operatorType.RESTART_JOB) {
-          restartTask(
-            '',
-            jobDetail?.instance?.taskId,
-            jobDetail?.instance?.step == JOB_LIFE_CYCLE.PUBLISH
-          );
+          await cancelTask('', jobDetail?.instance?.taskId, false);
         } else if (key == operatorType.SAVEPOINT_CANCEL) {
-          savePointTask('', jobDetail?.instance?.taskId, 'cancel');
+          await savePointTask('', jobDetail?.instance?.taskId, 'cancel');
         } else if (key == operatorType.SAVEPOINT_STOP) {
-          savePointTask('', jobDetail?.instance?.taskId, 'stop');
+          await savePointTask('', jobDetail?.instance?.taskId, 'stop');
         } else if (key == operatorType.SAVEPOINT_TRIGGER) {
-          savePointTask('', jobDetail?.instance?.taskId, 'trigger');
+          await savePointTask('', jobDetail?.instance?.taskId, 'trigger');
         } else if (key == operatorType.AUTO_STOP) {
-          cancelTask('', jobDetail?.instance?.taskId);
+          await cancelTask('', jobDetail?.instance?.taskId);
         }
         message.success(l('devops.jobinfo.job.key.success', '', { key: key }));
       }
@@ -79,15 +77,11 @@ const JobOperator = (props: OperatorType) => {
       <Button key='flinkwebui' href={webUri} target={'_blank'}>
         FlinkWebUI
       </Button>
-      <Button
-        key='autorestart'
-        type='primary'
-        onClick={() => handleJobOperator(operatorType.RESTART_JOB)}
-      >
-        {jobDetail?.instance?.step == 5
-          ? l('devops.jobinfo.reonline')
-          : l('devops.jobinfo.restart')}
-      </Button>
+
+      <RestartForm
+        lastCheckpoint={jobDetail?.jobDataDto?.checkpoints?.latest}
+        instance={jobDetail?.instance}
+      />
 
       {isStatusDone(jobDetail?.instance?.status as string) ? (
         <></>

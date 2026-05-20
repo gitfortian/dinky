@@ -17,9 +17,8 @@
  *
  */
 
-import { ClusterType } from '@/pages/RegCenter/Cluster/constants';
-import { CLUSTER_INSTANCE_TYPE } from '@/pages/RegCenter/Cluster/Instance/components/contants';
-import { validatorJMHAAdderess } from '@/pages/RegCenter/Cluster/Instance/components/function';
+import { CLUSTER_INSTANCE_TYPE } from '@/pages/RegCenter/Cluster/constants';
+import { validatorJMHAAddress } from '@/pages/RegCenter/Cluster/Instance/components/function';
 import { handleAddOrUpdate } from '@/services/BusinessCrud';
 import { API_CONSTANTS } from '@/services/endpoints';
 import { Jobs } from '@/types/DevOps/data';
@@ -85,7 +84,7 @@ const EditJobInstanceForm = (props: {
         name='type'
         label={l('rc.ci.type')}
         disabled
-        options={CLUSTER_INSTANCE_TYPE([ClusterType.YARN_APPLICATION])}
+        options={CLUSTER_INSTANCE_TYPE()}
         rules={[{ required: true, message: l('rc.ci.typePlaceholder') }]}
         placeholder={l('rc.ci.typePlaceholder')}
       />
@@ -98,7 +97,7 @@ const EditJobInstanceForm = (props: {
         rules={[
           {
             required: true,
-            validator: (rule, hostsValue) => validatorJMHAAdderess(rule, hostsValue)
+            validator: (rule, hostsValue) => validatorJMHAAddress(rule, hostsValue)
           }
         ]}
         placeholder={l('rc.ci.jmhaPlaceholder')}

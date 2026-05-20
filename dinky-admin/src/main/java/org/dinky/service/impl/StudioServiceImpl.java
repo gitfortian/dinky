@@ -25,6 +25,9 @@ import org.dinky.config.Dialect;
 import org.dinky.data.dto.StudioDDLDTO;
 import org.dinky.data.dto.StudioLineageDTO;
 import org.dinky.data.dto.StudioMetaStoreDTO;
+import org.dinky.data.dto.TaskDTO;
+import org.dinky.data.enums.Status;
+import org.dinky.data.exception.BusException;
 import org.dinky.data.model.Catalog;
 import org.dinky.data.model.ClusterInstance;
 import org.dinky.data.model.Column;
@@ -39,19 +42,26 @@ import org.dinky.explainer.lineage.LineageBuilder;
 import org.dinky.explainer.lineage.LineageResult;
 import org.dinky.explainer.sqllineage.SQLLineageBuilder;
 import org.dinky.job.JobConfig;
+import org.dinky.job.JobHandler;
 import org.dinky.job.JobManager;
+import org.dinky.job.JobReadHandler;
 import org.dinky.metadata.driver.Driver;
+import org.dinky.sandbox.Sandbox;
+import org.dinky.sandbox.SandboxFactory;
+import org.dinky.sandbox.metadata.TableId;
+import org.dinky.sandbox.metadata.TableInfo;
+import org.dinky.sandbox.metadata.Tuple;
 import org.dinky.service.ClusterInstanceService;
 import org.dinky.service.DataBaseService;
 import org.dinky.service.StudioService;
 import org.dinky.service.TaskService;
-import org.dinky.sql.FlinkQuery;
 import org.dinky.utils.FlinkTableMetadataUtil;
 import org.dinky.utils.RunTimeUtil;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
@@ -74,6 +84,8 @@ public class StudioServiceImpl implements StudioService {
     private final DataBaseService dataBaseService;
     private final TaskService taskService;
     private final Cache<String, JobManager> jobManagerCache = CacheUtil.newTimedCache(1000 * 60 * 2);
+    private final String DEFAULT_CATALOG = "default_catalog";
+    private final Sandbox sandbox = SandboxFactory.getDefaultSandbox();
 
     private IResult executeMSFlinkSql(StudioMetaStoreDTO studioMetaStoreDTO) {
         String envSql = taskService.buildEnvSql(studioMetaStoreDTO);
@@ -98,6 +110,28 @@ public class StudioServiceImpl implements StudioService {
     }
 
     @Override
+    public SelectResult getJobDataByTableName(String boxName, String tableName) {
+        final TableId tableId = TableId.withPrivate(boxName, tableName);
+        if (sandbox.existTable(tableId)) {
+            TableInfo tableInfo = sandbox.getTableInfo(tableId);
+            List<Tuple> data = sandbox.getData(tableId);
+            return SelectResult.buildBySandbox(boxName, tableInfo, data);
+        }
+        JobReadHandler readHandler = JobHandler.build().getReadHandler();
+        return readHandler.readResultDataFromStorage(Integer.parseInt(boxName), tableName);
+    }
+
+    @Override
+    public List<TableInfo> getJobDataTableInfos(String jobId) {
+        final List<TableInfo> allTables = sandbox.getAllTables(jobId);
+        if (allTables.isEmpty()) {
+            JobReadHandler readHandler = JobHandler.build().getReadHandler();
+            return readHandler.readResultTableNameFromStorage(Integer.parseInt(jobId));
+        }
+        return allTables;
+    }
+
+    @Override
     public LineageResult getLineage(StudioLineageDTO studioCADTO) {
         // TODO 添加ProcessStep
         if (Asserts.isNotNullString(studioCADTO.getDialect())
@@ -118,9 +152,14 @@ public class StudioServiceImpl implements StudioService {
                         studioCADTO.getStatement(), studioCADTO.getDialect().toLowerCase(), dataBase.getDriverConfig());
             }
         } else {
-            String envSql = taskService.buildEnvSql(studioCADTO);
-            studioCADTO.setStatement(studioCADTO.getStatement() + envSql);
-            return LineageBuilder.getColumnLineageByLogicalPlan(studioCADTO.getStatement());
+            TaskDTO taskDTO = taskService.getTaskInfoById(studioCADTO.getTaskId());
+            taskDTO.setStatement(taskService.buildEnvSql(taskDTO) + studioCADTO.getStatement());
+            JobConfig jobConfig = taskDTO.getJobConfig();
+            Optional.ofNullable(studioCADTO.getConfigJson()).ifPresent(config -> {
+                jobConfig.setUdfRefer(studioCADTO.getConfigJson().getUdfReferMaps());
+                jobConfig.setConfigJson(studioCADTO.getConfigJson().getCustomConfigMaps());
+            });
+            return LineageBuilder.getColumnLineageByLogicalPlan(taskDTO.getStatement(), jobConfig);
         }
     }
 
@@ -142,7 +181,7 @@ public class StudioServiceImpl implements StudioService {
         if (Dialect.isCommonSql(studioMetaStoreDTO.getDialect())) {
             DataBase dataBase = dataBaseService.getById(studioMetaStoreDTO.getDatabaseId());
             if (!Asserts.isNull(dataBase)) {
-                Catalog defaultCatalog = Catalog.build(FlinkQuery.defaultCatalog());
+                Catalog defaultCatalog = Catalog.build(DEFAULT_CATALOG);
                 Driver driver = Driver.build(dataBase.getDriverConfig());
                 defaultCatalog.setSchemas(driver.listSchemas());
                 catalogs.add(defaultCatalog);
@@ -204,10 +243,26 @@ public class StudioServiceImpl implements StudioService {
         return columns;
     }
 
+    @Override
+    public boolean dropMSTable(StudioMetaStoreDTO studioMetaStoreDTO) {
+        String catalogName = studioMetaStoreDTO.getCatalog();
+        String database = studioMetaStoreDTO.getDatabase();
+        String tableName = studioMetaStoreDTO.getTable();
+        if (Dialect.isCommonSql(studioMetaStoreDTO.getDialect())) {
+            throw new BusException(Status.SYS_CATALOG_ONLY_SUPPORT_FLINK_SQL_OPERATION);
+        } else {
+            String envSql = taskService.buildEnvSql(studioMetaStoreDTO);
+            JobManager jobManager = getJobManager(studioMetaStoreDTO, envSql);
+            CustomTableEnvironment customTableEnvironment =
+                    jobManager.getExecutor().getCustomTableEnvironment();
+            return FlinkTableMetadataUtil.dropTable(customTableEnvironment, catalogName, database, tableName);
+        }
+    }
+
     private JobManager getJobManager(StudioMetaStoreDTO studioMetaStoreDTO, String envSql) {
         JobManager jobManager = jobManagerCache.get(envSql, () -> {
             JobConfig config = studioMetaStoreDTO.getJobConfig();
-            JobManager jobManagerTmp = JobManager.build(config);
+            JobManager jobManagerTmp = JobManager.buildPlanMode(config);
             jobManagerTmp.executeDDL(envSql);
             return jobManagerTmp;
         });

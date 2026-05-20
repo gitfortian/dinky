@@ -20,21 +20,18 @@
 package org.dinky.service.task;
 
 import org.dinky.config.Dialect;
+import org.dinky.context.TaskContextHolder;
 import org.dinky.data.annotations.SupportDialect;
 import org.dinky.data.dto.TaskDTO;
 import org.dinky.data.exception.NotSupportExplainExcepition;
-import org.dinky.data.result.SelectResult;
 import org.dinky.data.result.SqlExplainResult;
 import org.dinky.job.JobResult;
 
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import cn.hutool.cache.Cache;
-import cn.hutool.cache.impl.TimedCache;
 import cn.hutool.core.text.StrFormatter;
 import cn.hutool.core.util.ClassUtil;
 import cn.hutool.core.util.ReflectUtil;
@@ -43,7 +40,9 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public abstract class BaseTask {
 
-    private static final Cache<String, SelectResult> results = new TimedCache<>(TimeUnit.MINUTES.toMillis(10));
+    private static final Set<Class<?>> taskRegistry =
+            ClassUtil.scanPackageBySuper(BaseTask.class.getPackage().getName(), BaseTask.class);
+
     final TaskDTO task;
 
     public abstract JobResult execute() throws Exception;
@@ -63,13 +62,12 @@ public abstract class BaseTask {
     }
 
     public static BaseTask getTask(TaskDTO taskDTO) {
-        Set<Class<?>> classes =
-                ClassUtil.scanPackageBySuper(BaseTask.class.getPackage().getName(), BaseTask.class);
-        for (Class<?> clazz : classes) {
+        for (Class<?> clazz : taskRegistry) {
             SupportDialect annotation = clazz.getAnnotation(SupportDialect.class);
             if (annotation != null) {
                 for (Dialect dialect : annotation.value()) {
                     if (dialect.isDialect(taskDTO.getDialect())) {
+                        TaskContextHolder.setDialect(dialect);
                         return (BaseTask) ReflectUtil.newInstance(clazz, taskDTO);
                     }
                 }

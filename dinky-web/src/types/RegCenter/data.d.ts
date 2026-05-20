@@ -19,6 +19,7 @@
 
 import { BaseBeanColumns } from '@/types/Public/data';
 import { ConfigItem } from '@/types/Studio/data.d';
+import { QueryParams } from '@/pages/RegCenter/DataSource/components/DataSourceDetail/RightTagsRouter/data';
 
 /**
  * about alert
@@ -31,6 +32,11 @@ declare namespace Alert {
     alertInstanceIds: string;
     note: string;
   };
+
+  export enum AlertInstanceOfWechatSubType {
+    WECHAT = 'wechat',
+    APP = 'app'
+  }
 
   /**
    * alert instance params sub type
@@ -190,6 +196,7 @@ declare namespace Cluster {
     version: string;
     status: number;
     note: string;
+    clusterConfigurationId: number;
   };
 
   /**
@@ -208,6 +215,14 @@ declare namespace Cluster {
  * about database and metadata
  */
 declare namespace DataSources {
+  /**
+   * SchemaDescProps info
+   */
+  export type SchemaDescProps = {
+    tableInfo?: Partial<DataSources.Table>;
+    queryParams?: QueryParams;
+  };
+
   /**
    * database info
    */
@@ -237,6 +252,8 @@ declare namespace DataSources {
     type: string;
     engine: string;
     options: string;
+    driverType: string;
+    columns?: Column[];
     rows: number;
     createTime: string;
     updateTime: string;
@@ -250,10 +267,11 @@ declare namespace DataSources {
     type: string;
     comment: string;
     keyFlag: boolean;
+    partaionKey: boolean;
     autoIncrement: boolean;
     defaultValue: string;
     nullable: string;
-    javaType: string;
+    dataType: DataType;
     columnFamily: string;
     position: number;
     precision: number;
@@ -262,13 +280,22 @@ declare namespace DataSources {
     collation: string;
   };
 
+  export type DataType = {
+    value: string;
+    logicalType: {
+      children: [];
+      nullable: boolean;
+      typeRoot: string;
+    };
+  };
+
   /**
    * table columns info
    */
   export type SqlGeneration = {
-    flinkSqlCreate: string;
-    sqlSelect: string;
-    sqlCreate: string;
+    flinkSqlCreate: string | '';
+    sqlSelect: string | '';
+    sqlCreate: string | '';
   };
 }
 
@@ -340,6 +367,7 @@ export interface UDFRegisterInfo {
   resourcesId: number;
   name: string;
   className: string;
+  language: string;
   enable: boolean;
   dialect: string;
   source: string;
@@ -348,6 +376,7 @@ export interface UDFRegisterInfo {
   // createTime: string;
   updateTime: Date;
 }
+
 export interface UDFRegisterInfoParent {
   num: number;
   resourcesId: number;
@@ -355,6 +384,7 @@ export interface UDFRegisterInfoParent {
   source: string;
   fileName: string;
 }
+
 export interface UDFRegisterInfoChild {
   id: number;
   resourcesId: number;

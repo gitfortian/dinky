@@ -19,14 +19,16 @@
 
 package org.dinky.utils;
 
-import org.dinky.data.enums.ColumnType;
 import org.dinky.data.model.Catalog;
 import org.dinky.data.model.Column;
 import org.dinky.data.model.Schema;
 import org.dinky.data.model.Table;
 import org.dinky.executor.CustomTableEnvironment;
 
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -35,6 +37,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FlinkTableMetadataUtil {
@@ -65,6 +68,15 @@ public class FlinkTableMetadataUtil {
         customTableEnvironment.useDatabase(database);
         for (String tableName : customTableEnvironment.getCatalogManager().listTables(catalogName, database)) {
             Table table = Table.build(tableName, catalogName);
+            customTableEnvironment.getCatalogManager().getCatalog(catalogName).ifPresent(t -> {
+                try {
+                    CatalogBaseTable baseTable = t.getTable(new ObjectPath(database, tableName));
+                    table.setComment(baseTable.getComment());
+                    table.setOptions(baseTable.getOptions().toString());
+                } catch (Exception e) {
+                    // nothing to do
+                }
+            });
             tables.add(table);
         }
         schema.setTables(tables);
@@ -99,6 +111,7 @@ public class FlinkTableMetadataUtil {
                                 .type(logicalType.getTypeRoot().name())
                                 .keyFlag(isPrimaryKey.get())
                                 .isNullable(logicalType.isNullable())
+                                .comment(flinkColumn.getComment().orElse(""))
                                 .position(i)
                                 .build();
                         if (logicalType instanceof VarCharType) {
@@ -110,25 +123,25 @@ public class FlinkTableMetadataUtil {
                             column.setScale(((DecimalType) logicalType).getScale());
                         }
 
-                        for (ColumnType columnType : ColumnType.values()) {
-                            if (columnType
-                                    .getJavaType()
-                                    .equals(flinkColumn
-                                            .getDataType()
-                                            .getConversionClass()
-                                            .getName())) {
-                                column.setJavaType(columnType);
-                                break;
-                            }
-                        }
-                        //                            FlinkColumn flinkColumn = FlinkColumn.build(i,
-                        // column.getName(), column.getDataType().getConversionClass().getName(),
-                        // isPrimaryKey.get(), column.getDataType().getLogicalType().isNullable(),
-                        // column.explainExtras().orElse(""), "", column.getComment().orElse(""));
-
+                        column.buildDataType();
                         columns.add(column);
                     }
                 });
         return columns;
+    }
+
+    public static boolean dropTable(
+            CustomTableEnvironment customTableEnvironment, String catalogName, String database, String tableName) {
+        Optional<org.apache.flink.table.catalog.Catalog> catalogOptional =
+                customTableEnvironment.getCatalogManager().getCatalog(catalogName);
+        if (catalogOptional.isPresent()) {
+            try {
+                catalogOptional.get().dropTable(new ObjectPath(database, tableName), true);
+                return true;
+            } catch (TableNotExistException e) {
+                return false;
+            }
+        }
+        return false;
     }
 }

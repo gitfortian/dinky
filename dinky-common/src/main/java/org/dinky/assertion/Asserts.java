@@ -93,10 +93,18 @@ public class Asserts {
         }
     }
 
-    public static void checkNotNull(Object object, String msg) {
-        if (isNull(object)) {
+    public static <T> T checkNotNull(T reference) {
+        if (isNull(reference)) {
+            throw new NullPointerException();
+        }
+        return reference;
+    }
+
+    public static <T> T checkNotNull(T reference, String msg) {
+        if (isNull(reference)) {
             throw new BusException(msg);
         }
+        return reference;
     }
 
     public static void checkNullString(String key, String msg) {
@@ -115,5 +123,9 @@ public class Asserts {
         if (isNullMap(map)) {
             throw new BusException(msg);
         }
+    }
+
+    public static boolean isContainsString(String str1, String str2) {
+        return !isNullString(str1) && str1.contains(str2);
     }
 }

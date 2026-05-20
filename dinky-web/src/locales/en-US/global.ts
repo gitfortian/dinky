@@ -20,7 +20,7 @@
 export default {
   'button.add': 'Add',
   'button.check': 'Check',
-  'button.graph': 'DAG',
+  'button.graph': 'Topology',
   'button.create': 'Create',
   'button.close': 'Close',
   'button.daemon': 'Daemon Mode',
@@ -40,6 +40,7 @@ export default {
   'button.config': 'Config',
   'button.modify': 'Modify',
   'button.edit': 'Edit',
+  'button.open': 'Open',
   'button.start': 'Start',
   'button.stop': 'Stop',
   'button.publish': 'Publish',
@@ -63,6 +64,7 @@ export default {
   'button.collapse-all': 'Collapse All',
   'button.position': 'Position',
   'button.test': 'Test',
+  'button.test.connection': 'Test Connection',
   'button.clear': 'Clear',
   'button.copy': 'Copy',
   'button.refreshData': 'Refresh Data',
@@ -79,10 +81,13 @@ export default {
   'button.backTop': 'Back Top',
   'button.backBottom': 'Back Bottom',
   'button.downScroll': 'Down Scroll',
+  'button.wrap': 'Wrap',
   'button.upScroll': 'Up Scroll',
   'button.stopRefresh': 'Stop Auto Refresh',
   'button.startRefresh': 'Start Auto Refresh(5s/e)',
   'button.autoWrap': 'Auto Wrap/Unwrap',
+  'button.output': 'Output',
+  'button.ava': 'Automated insights',
 
   'menu.menu': 'Menu',
   'right.menu.open': 'Open',
@@ -113,15 +118,17 @@ export default {
   'status.enabled': 'Enabled',
   'status.disabled': 'Disabled',
 
-  'global.time.second': 'S ',
-  'global.time.minute': 'M ',
-  'global.time.hour': 'H ',
-  'global.time.day': 'D ',
+  'global.time.second': 's ',
+  'global.time.minute': 'm ',
+  'global.time.hour': 'h ',
+  'global.time.day': 'd ',
   'global.time.millisecond': 'ms ',
 
   'global.stay.tuned': 'Stay tuned',
   'global.mini': 'Mini Size',
   'global.max': 'Max Size',
+  'global.blankOpen': 'Opens in a new window',
+  'global.float': 'Float',
 
   'global.table.operate': 'Operation',
   'global.table.config': 'Config',
@@ -136,6 +143,8 @@ export default {
   'global.table.endTime': 'End Time',
   'global.table.finishTime': 'Finished Time',
   'global.table.useTime': 'Duration',
+  'global.table.firstLevelOwner': 'Owner',
+  'global.table.secondLevelOwners': 'Maintainer',
 
   'global.table.registType': 'Regist Type',
   'global.table.registType.manual': 'Manual',
@@ -228,5 +237,11 @@ export default {
   'global.job.status.reconciling': 'Reconciling',
   'global.job.status.reconnecting': 'Reconnecting',
   'global.job.status.unknown': 'Unknown',
-  'global.job.status.failed-tip': 'Failed to submit to the cluster, unable to get the task name'
+  'global.job.status.failed-tip': 'Failed to submit to the cluster, unable to get the task name',
+
+  'global.operation.unable': 'Unable to operate',
+  'global.operation.able': 'Can operate',
+
+  //WS
+  'global.ws.failed': 'Failed to connect to WebSocket'
 };

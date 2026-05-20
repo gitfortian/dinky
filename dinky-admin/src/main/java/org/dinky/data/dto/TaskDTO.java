@@ -20,12 +20,19 @@
 package org.dinky.data.dto;
 
 import org.dinky.data.annotations.ProcessId;
+import org.dinky.data.annotations.TaskId;
 import org.dinky.data.model.Task;
+import org.dinky.data.model.alert.AlertGroup;
 import org.dinky.data.model.ext.TaskExtConfig;
+import org.dinky.data.typehandler.ListTypeHandler;
 import org.dinky.job.JobConfig;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import com.baomidou.mybatisplus.annotation.TableField;
 
 import cn.hutool.core.bean.BeanUtil;
 import io.swagger.annotations.ApiModel;
@@ -36,7 +43,6 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * StudioExecuteDTO
- *
  */
 @Getter
 @Setter
@@ -46,6 +52,7 @@ public class TaskDTO extends AbstractStatementDTO {
 
     @ApiModelProperty(value = "ID", dataType = "Integer", example = "6", notes = "The identifier of the execution")
     @ProcessId
+    @TaskId
     private Integer id;
 
     @ApiModelProperty(value = "Name", required = true, dataType = "String", example = "Name")
@@ -77,13 +84,6 @@ public class TaskDTO extends AbstractStatementDTO {
 
     @ApiModelProperty(value = "Parallelism", dataType = "Integer", example = "4", notes = "The parallelism level")
     private Integer parallelism;
-
-    @ApiModelProperty(
-            value = "Fragment",
-            dataType = "Boolean",
-            example = "true",
-            notes = "Fragment option for the task")
-    private Boolean fragment;
 
     @ApiModelProperty(
             value = "Use Statement Set",
@@ -127,6 +127,9 @@ public class TaskDTO extends AbstractStatementDTO {
             notes = "ID of the alert group associated with the task")
     private Integer alertGroupId;
 
+    @ApiModelProperty(value = "Alert Group", dataType = "AlertGroup", notes = "Alert group associated with the task")
+    private AlertGroup alertGroup;
+
     @ApiModelProperty(value = "Note", dataType = "String", notes = "Additional notes for the task")
     private String note;
 
@@ -154,11 +157,16 @@ public class TaskDTO extends AbstractStatementDTO {
             notes = "ID of the version associated with the task")
     private Integer versionId;
 
+    @ApiModelProperty(
+            value = "Auto Restart",
+            dataType = "Boolean",
+            example = "false",
+            notes =
+                    "Whether to automatically restart the job from the latest checkpoint when it fails or becomes UNKNOWN")
+    private Boolean autoRestart;
+
     @ApiModelProperty(value = "Enabled", required = true, dataType = "Boolean", example = "true")
     private Boolean enabled;
-
-    @ApiModelProperty(value = "Statement", dataType = "String", notes = "SQL statement for the task")
-    private String statement;
 
     @ApiModelProperty(value = "ClusterInstance Name", dataType = "String", notes = "Name of the associated cluster")
     private String clusterName;
@@ -208,6 +216,13 @@ public class TaskDTO extends AbstractStatementDTO {
             notes = "Flag indicating whether to use auto-canceling")
     private boolean useAutoCancel = true;
 
+    @ApiModelProperty(
+            value = "Flag indicating whether to mock sink function",
+            dataType = "boolean",
+            example = "true",
+            notes = "Flag indicating whether to mock sink function")
+    private boolean mockSinkFunction = false;
+
     @ApiModelProperty(value = "Session", dataType = "String", example = "session_id", notes = "The session identifier")
     private String session;
 
@@ -221,14 +236,32 @@ public class TaskDTO extends AbstractStatementDTO {
             notes = "The maximum number of rows to return")
     private Integer maxRowNum = 100;
 
+    @ApiModelProperty(
+            value = "First Level Owner",
+            dataType = "Integer",
+            example = "1001",
+            notes = "primary responsible person id")
+    private Integer firstLevelOwner;
+
+    @ApiModelProperty(
+            value = "Second Level Owners",
+            dataType = "List",
+            notes = "list of secondary responsible persons' ids")
+    @TableField(typeHandler = ListTypeHandler.class)
+    private List<Integer> secondLevelOwners;
+
+    @ApiModelProperty(value = "Update Time", dataType = "LocalDateTime", example = "2021-05-28 00:00:00")
+    private LocalDateTime updateTime;
+
     public JobConfig getJobConfig() {
 
         Map<String, String> parsedConfig =
                 this.configJson == null ? new HashMap<>(0) : this.configJson.getCustomConfigMaps();
-
+        Map<String, String> udfRefers = this.configJson == null ? new HashMap<>(0) : this.configJson.getUdfReferMaps();
         JobConfig jobConfig = new JobConfig();
         BeanUtil.copyProperties(this, jobConfig);
         jobConfig.setConfigJson(parsedConfig);
+        jobConfig.setUdfRefer(udfRefers);
         jobConfig.setTaskId(id);
         jobConfig.setJobName(name);
 
@@ -239,5 +272,11 @@ public class TaskDTO extends AbstractStatementDTO {
         Task task = new Task();
         BeanUtil.copyProperties(this, task);
         return task;
+    }
+
+    public static TaskDTO fromTask(Task task) {
+        TaskDTO dto = new TaskDTO();
+        BeanUtil.copyProperties(task, dto);
+        return dto;
     }
 }

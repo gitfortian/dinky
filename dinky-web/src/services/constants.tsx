@@ -26,17 +26,16 @@ import { ModalFormProps } from '@ant-design/pro-form/es/layouts/ModalForm';
 export const TENANT_ID = 'tenantId';
 
 /**
- * the platform version
- */
-export const VERSION = '1.0.0-rc2';
-
-/**
  * the platform language
  */
 export const STORY_LANGUAGE = 'language';
 export const LANGUAGE_KEY = 'umi_locale';
 export const LANGUAGE_ZH = 'zh-CN';
 export const LANGUAGE_EN = 'en-US';
+
+export const SERVER_VERSION = 'dinky_server_version';
+
+export const TOKEN_KEY = 'dinky-token';
 
 export const DATE_FORMAT = 'YYYY-MM-DD';
 export const DATETIME_FORMAT = 'YYYY-MM-DD HH:mm:ss';
@@ -98,7 +97,7 @@ export const FORM_LAYOUT_PUBLIC = {
  * the modal form layout of public
  */
 export const MODAL_FORM_STYLE: any = {
-  width: '50%',
+  width: '55%',
   style: {
     maxHeight: '70vh',
     overflowY: 'auto'
@@ -133,10 +132,10 @@ export const PRO_LIST_CARD_OPTIONS = {
  */
 export const PROTABLE_OPTIONS_PUBLIC: any = {
   pagination: {
-    defaultPageSize: 12,
+    defaultPageSize: 10,
     hideOnSinglePage: true,
     showQuickJumper: false,
-    showSizeChanger: false,
+    showSizeChanger: true,
     position: ['bottomCenter']
   },
   ghost: false,
@@ -228,7 +227,9 @@ export const DIALECT = {
   HIVE: 'hive',
   PHOENIX: 'phoenix',
   STARROCKS: 'starrocks',
-  PRESTO: 'presto'
+  PRESTO: 'presto',
+  TERMINAL: 'terminal',
+  PAIMON: 'paimon'
 };
 
 export const RUN_MODE = {

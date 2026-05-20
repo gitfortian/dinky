@@ -20,6 +20,7 @@
 package org.dinky.utils;
 
 import org.dinky.assertion.Asserts;
+import org.dinky.data.constant.DirConstant;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -32,13 +33,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.text.StrFormatter;
 import cn.hutool.core.util.StrUtil;
 
 /**
  * @since 0.7.0
  */
 public class URLUtils {
-    private static final String TMP_PATH = StrUtil.join(File.separator, System.getProperty("user.dir"), "tmp");
+    private static final String TMP_PATH = DirConstant.getTempRootDir();
 
     /**
      * url download file to local
@@ -50,16 +52,14 @@ public class URLUtils {
         try {
             URL url = new URL(urlPath);
             URLConnection urlConnection = url.openConnection();
-            if ("http".equals(url.getProtocol())
-                    || "https".equals(url.getProtocol())
-                    || "hdfs".equals(url.getProtocol())) {
-            } else if ("rs".equals(url.getProtocol())) {
+            if ("rs".equals(url.getProtocol())) {
                 String path = StrUtil.join(File.separator, TMP_PATH, "rs", url.getPath());
                 return FileUtil.writeFromStream(urlConnection.getInputStream(), path);
             } else if ("file".equals(url.getProtocol())) {
                 return new File(url.getPath());
             }
-            return null;
+            throw new RuntimeException(StrFormatter.format(
+                    "The path {} unsupported protocol: {},please use rs:// or file://", urlPath, url.getProtocol()));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

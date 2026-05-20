@@ -19,15 +19,19 @@
 
 package org.dinky.controller;
 
+import org.dinky.DinkyVersion;
 import org.dinky.data.annotations.Log;
+import org.dinky.data.dto.APISavePointTaskDTO;
 import org.dinky.data.dto.TaskDTO;
 import org.dinky.data.dto.TaskSubmitDto;
 import org.dinky.data.enums.BusinessType;
 import org.dinky.data.enums.Status;
 import org.dinky.data.exception.NotSupportExplainExcepition;
 import org.dinky.data.model.job.JobInstance;
+import org.dinky.data.result.ProTableResult;
 import org.dinky.data.result.Result;
 import org.dinky.data.result.SqlExplainResult;
+import org.dinky.data.vo.task.JobInstanceVo;
 import org.dinky.gateway.enums.SavePointType;
 import org.dinky.gateway.result.SavePointResult;
 import org.dinky.job.JobResult;
@@ -43,6 +47,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.swagger.annotations.Api;
@@ -65,18 +70,10 @@ public class APIController {
     private final TaskService taskService;
     private final JobInstanceService jobInstanceService;
 
-    // Interface compatible with DolphinScheduler
-    @GetMapping("/submitTask")
-    @ApiOperation("Submit Task")
-    public Result<JobResult> submitTask(@RequestParam Integer id) throws Exception {
-        taskService.initTenantByTaskId(id);
-        JobResult jobResult =
-                taskService.submitTask(TaskSubmitDto.builder().id(id).build());
-        if (jobResult.isSuccess()) {
-            return Result.succeed(jobResult, Status.EXECUTE_SUCCESS);
-        } else {
-            return Result.failed(jobResult, jobResult.getError());
-        }
+    @GetMapping("/version")
+    @ApiOperation(value = "Query Service Version", notes = "Query Dinky Service Version Number")
+    public Result<String> getVersionInfo() {
+        return Result.succeed(DinkyVersion.getVersion(), Status.QUERY_SUCCESS);
     }
 
     @PostMapping("/submitTask")
@@ -92,13 +89,25 @@ public class APIController {
         }
     }
 
+    @PostMapping("/savepointTask")
+    public Result savepointTask(@RequestBody APISavePointTaskDTO apiSavePointTaskDTO) {
+        return Result.succeed(
+                taskService.savepointTaskJob(
+                        taskService.getTaskInfoById(apiSavePointTaskDTO.getTaskId()),
+                        SavePointType.get(apiSavePointTaskDTO.getType())),
+                Status.EXECUTE_SUCCESS);
+    }
+
     @GetMapping("/cancel")
     //    @Log(title = "Cancel Flink Job", businessType = BusinessType.TRIGGER)
     @ApiOperation("Cancel Flink Job")
     public Result<Boolean> cancel(
-            @RequestParam Integer id, @RequestParam(defaultValue = "false") boolean withSavePoint) {
+            @RequestParam Integer id,
+            @RequestParam(defaultValue = "false") boolean withSavePoint,
+            @RequestParam(defaultValue = "true") boolean forceCancel) {
         return Result.succeed(
-                taskService.cancelTaskJob(taskService.getTaskInfoById(id), withSavePoint), Status.EXECUTE_SUCCESS);
+                taskService.cancelTaskJob(taskService.getTaskInfoById(id), withSavePoint, forceCancel),
+                Status.EXECUTE_SUCCESS);
     }
 
     /**
@@ -194,6 +203,18 @@ public class APIController {
             dataTypeClass = Integer.class)
     public Result getTaskLineage(@RequestParam Integer id) {
         taskService.initTenantByTaskId(id);
-        return Result.succeed(taskService.getTaskLineage(id), "获取成功");
+        return Result.succeed(taskService.getTaskLineage(id), Status.QUERY_SUCCESS);
+    }
+
+    @PostMapping("/getJobInstanceList")
+    @ApiImplicitParam(
+            name = "para",
+            value = "Query parameters",
+            dataType = "JsonNode",
+            paramType = "body",
+            required = true,
+            dataTypeClass = JsonNode.class)
+    public ProTableResult<JobInstanceVo> listJobInstances(@RequestBody JsonNode para) {
+        return jobInstanceService.listJobInstances(para);
     }
 }

@@ -22,13 +22,9 @@ import { BaseConfigProperties } from '@/types/SettingCenter/data';
 import { l } from '@/utils/intl';
 import { Tag } from 'antd';
 import React from 'react';
+import { GeneralComponentConfigProps } from '@/pages/SettingCenter/GlobalSetting/data.d';
 
-interface FlinkConfigProps {
-  data: BaseConfigProperties[];
-  onSave: (data: BaseConfigProperties) => void;
-}
-
-export const FlinkConfig = ({ data, onSave }: FlinkConfigProps) => {
+export const FlinkConfig = ({ data, onSave, auth }: GeneralComponentConfigProps) => {
   const [loading, setLoading] = React.useState(false);
 
   const onSaveHandler = async (data: BaseConfigProperties) => {
@@ -39,10 +35,10 @@ export const FlinkConfig = ({ data, onSave }: FlinkConfigProps) => {
 
   return (
     <>
-      {/*<Text keyboard>{l('sys.setting.flink.tooltip')}</Text>*/}
       <GeneralConfig
         loading={loading}
         onSave={onSaveHandler}
+        auth={auth}
         tag={
           <>
             <Tag color={'success'}>{l('sys.setting.tag.extend')}</Tag>

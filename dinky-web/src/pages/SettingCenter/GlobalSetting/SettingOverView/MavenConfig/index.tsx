@@ -22,13 +22,9 @@ import { BaseConfigProperties } from '@/types/SettingCenter/data';
 import { l } from '@/utils/intl';
 import { Tag } from 'antd';
 import React from 'react';
+import { GeneralComponentConfigProps } from '@/pages/SettingCenter/GlobalSetting/data.d';
 
-interface MavenConfigProps {
-  data: BaseConfigProperties[];
-  onSave: (data: BaseConfigProperties) => void;
-}
-
-export const MavenConfig = ({ data, onSave }: MavenConfigProps) => {
+export const MavenConfig = ({ data, onSave, auth }: GeneralComponentConfigProps) => {
   const [loading, setLoading] = React.useState(false);
 
   const onSaveHandler = async (data: BaseConfigProperties) => {
@@ -39,10 +35,10 @@ export const MavenConfig = ({ data, onSave }: MavenConfigProps) => {
 
   return (
     <>
-      {/*tooltip={l('sys.setting.maven.tooltip')}*/}
       <GeneralConfig
         loading={loading}
         onSave={onSaveHandler}
+        auth={auth}
         tag={
           <>
             <Tag color={'default'}>{l('sys.setting.tag.integration')}</Tag>

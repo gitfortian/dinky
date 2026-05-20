@@ -27,6 +27,7 @@ import org.dinky.data.model.DataBase;
 import org.dinky.data.model.QueryData;
 import org.dinky.data.model.Schema;
 import org.dinky.data.model.SqlGeneration;
+import org.dinky.data.model.Table;
 import org.dinky.data.result.SqlExplainResult;
 import org.dinky.job.JobResult;
 import org.dinky.metadata.result.JdbcSelectResult;
@@ -55,7 +56,7 @@ public interface DataBaseService extends ISuperService<DataBase> {
      * @param dataBase {@link DataBase}
      * @return {@link Boolean}
      */
-    Boolean checkHeartBeat(DataBase dataBase);
+    String checkHeartBeat(DataBase dataBase);
 
     /**
      * save or update database
@@ -81,12 +82,36 @@ public interface DataBaseService extends ISuperService<DataBase> {
     List<DataBase> listEnabledAll();
 
     /**
+     * delete database by id (physical deletion)
+     *
+     * @param id {@link Integer} database id
+     * @return {@link Boolean} true: success false: fail
+     */
+    Boolean deleteDataSourceById(Integer id);
+
+    /**
      * get all database of schemas and tables
      *
      * @param id {@link Integer}
      * @return {@link List}< {@link Schema}>
      */
     List<Schema> getSchemasAndTables(Integer id);
+
+    /**
+     * get all schemas of database
+     *
+     * @param id {@link Integer}
+     * @return {@link List}< {@link Schema}>
+     */
+    List<Schema> getSchemas(Integer id);
+
+    /**
+     * get all tables of schema of database
+     * @param id {@link Integer}
+     * @param schemaName {@link String}
+     * @return {@link List}< {@link Table}>
+     */
+    List<Table> getTables(Integer id, String schemaName);
 
     /**
      * get columns of table
@@ -198,4 +223,21 @@ public interface DataBaseService extends ISuperService<DataBase> {
     List<DataBase> selectListByKeyWord(String keyword);
 
     JobResult StreamExecuteCommonSql(SqlDTO sqlDTO);
+
+    /**
+     * check datasource has relationship with other table
+     * @param id {@link Integer} alert group id
+     * @return {@link Boolean} true: has relationship, false: no relationship
+     */
+    boolean hasRelationShip(Integer id);
+
+    /**
+     * get table
+     *
+     * @param id {@link Integer}
+     * @param schemaName {@link String}
+     * @param tableName {@link String}
+     * @return {@link List}< {@link Column}>
+     */
+    Table getTable(Integer id, String schemaName, String tableName);
 }

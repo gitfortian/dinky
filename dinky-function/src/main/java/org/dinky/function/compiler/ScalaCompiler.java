@@ -34,12 +34,12 @@ import lombok.extern.slf4j.Slf4j;
 public class ScalaCompiler implements FunctionCompiler {
 
     @Override
-    public boolean compiler(UDF udf, ReadableConfig conf, Integer missionId) {
+    public boolean compiler(UDF udf, ReadableConfig conf, Integer taskId) {
         // TODO 改为ProcessStep注释
 
         String className = udf.getClassName();
         log.info("正在编译 scala 代码 , class: " + className);
-        if (CustomStringScalaCompiler.getInterpreter(missionId).compileString(udf.getCode())) {
+        if (CustomStringScalaCompiler.getInterpreter().compileString(udf.getCode())) {
             log.info("scala class编译成功:" + className);
             return true;
         } else {

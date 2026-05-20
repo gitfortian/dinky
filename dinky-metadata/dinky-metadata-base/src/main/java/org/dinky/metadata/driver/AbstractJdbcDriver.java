@@ -26,18 +26,20 @@ import static org.dinky.utils.SplitUtil.isSplit;
 import org.dinky.assertion.Asserts;
 import org.dinky.data.constant.CommonConstant;
 import org.dinky.data.enums.TableType;
+import org.dinky.data.exception.BusException;
 import org.dinky.data.model.Column;
 import org.dinky.data.model.QueryData;
 import org.dinky.data.model.Schema;
 import org.dinky.data.model.Table;
 import org.dinky.data.result.SqlExplainResult;
+import org.dinky.data.types.DataTypes;
 import org.dinky.metadata.config.AbstractJdbcConfig;
 import org.dinky.metadata.config.DriverConfig;
+import org.dinky.metadata.convert.AbstractJdbcTypeConvert;
 import org.dinky.metadata.query.IDBQuery;
 import org.dinky.metadata.result.JdbcSelectResult;
 import org.dinky.utils.JsonUtils;
 import org.dinky.utils.LogUtil;
-import org.dinky.utils.TextUtil;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -83,6 +85,8 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
     protected String validationQuery = "select 1";
 
     abstract String getDriverClass();
+
+    public abstract AbstractJdbcTypeConvert getTypeConvert();
 
     @Override
     public String test() {
@@ -207,6 +211,7 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
             }
         } catch (Exception e) {
             log.error("ListSchemas failed", e);
+            throw new BusException(e.getMessage());
         } finally {
             close(preparedStatement, results);
         }
@@ -252,6 +257,7 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
                 String tableName = results.getString(dbQuery.tableName());
                 if (Asserts.isNotNullString(tableName)) {
                     Table tableInfo = new Table();
+                    tableInfo.setDriverType(getType());
                     tableInfo.setName(tableName);
                     if (columnList.contains(dbQuery.tableComment())) {
                         tableInfo.setComment(results.getString(dbQuery.tableComment()));
@@ -282,7 +288,66 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
                 }
             }
         } catch (SQLException e) {
-            log.error("ListTables Failed", e);
+            log.error("ListTables error:", e);
+            throw new BusException(e.getMessage());
+        } finally {
+            close(preparedStatement, results);
+        }
+        return tableList;
+    }
+
+    @Override
+    public List<Table> listTables(String schemaName, String tableName) {
+        List<Table> tableList = new ArrayList<>();
+        PreparedStatement preparedStatement = null;
+        ResultSet results = null;
+        IDBQuery dbQuery = getDBQuery();
+        String sql = dbQuery.tablesSql(schemaName, tableName);
+        try {
+            preparedStatement = conn.get().prepareStatement(sql);
+            results = preparedStatement.executeQuery();
+            ResultSetMetaData metaData = results.getMetaData();
+            List<String> columnList = new ArrayList<>();
+            for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                columnList.add(metaData.getColumnLabel(i));
+            }
+            while (results.next()) {
+                String tableNameResult = results.getString(dbQuery.tableName());
+                if (Asserts.isNotNullString(tableNameResult)) {
+                    Table tableInfo = new Table();
+                    tableInfo.setDriverType(getType());
+                    tableInfo.setName(tableNameResult);
+                    if (columnList.contains(dbQuery.tableComment())) {
+                        tableInfo.setComment(results.getString(dbQuery.tableComment()));
+                    }
+                    tableInfo.setSchema(schemaName);
+                    if (columnList.contains(dbQuery.tableType())) {
+                        tableInfo.setType(results.getString(dbQuery.tableType()));
+                    }
+                    if (columnList.contains(dbQuery.catalogName())) {
+                        tableInfo.setCatalog(results.getString(dbQuery.catalogName()));
+                    }
+                    if (columnList.contains(dbQuery.engine())) {
+                        tableInfo.setEngine(results.getString(dbQuery.engine()));
+                    }
+                    if (columnList.contains(dbQuery.options())) {
+                        tableInfo.setOptions(results.getString(dbQuery.options()));
+                    }
+                    if (columnList.contains(dbQuery.rows())) {
+                        tableInfo.setRows(results.getLong(dbQuery.rows()));
+                    }
+                    if (columnList.contains(dbQuery.createTime())) {
+                        tableInfo.setCreateTime(results.getTimestamp(dbQuery.createTime()));
+                    }
+                    if (columnList.contains(dbQuery.updateTime())) {
+                        tableInfo.setUpdateTime(results.getTimestamp(dbQuery.updateTime()));
+                    }
+                    tableList.add(tableInfo);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("ListTables error:", e);
+            throw new BusException(e.getMessage());
         } finally {
             close(preparedStatement, results);
         }
@@ -372,11 +437,12 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
                 if (columnList.contains(dbQuery.defaultValue())) {
                     field.setDefaultValue(results.getString(dbQuery.defaultValue()));
                 }
-                field.setJavaType(getTypeConvert().convert(field, config));
+                field.setDataType(getTypeConvert().convert(field, config));
                 columns.add(field);
             }
         } catch (SQLException e) {
             log.error("ListColumns error", e);
+            throw new BusException(e.getMessage());
         } finally {
             close(preparedStatement, results);
         }
@@ -393,16 +459,6 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
     @Override
     public boolean createTable(Table table) throws Exception {
         String sql = getCreateTableSql(table).replaceAll("\r\n", " ");
-        if (Asserts.isNotNull(sql)) {
-            return execute(sql);
-        } else {
-            return false;
-        }
-    }
-
-    @Override
-    public boolean generateCreateTable(Table table) throws Exception {
-        String sql = generateCreateTableSql(table).replaceAll("\r\n", " ");
         if (Asserts.isNotNull(sql)) {
             return execute(sql);
         } else {
@@ -455,6 +511,7 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
             }
         } catch (Exception e) {
             log.error("GetCreateTableSql Failed", e);
+            throw new BusException(e.getMessage());
         } finally {
             close(preparedStatement, results);
         }
@@ -481,12 +538,6 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
         }
         sb.append(table.getName());
         return sb.toString();
-    }
-
-    // todu impl by subclass
-    @Override
-    public String generateCreateTableSql(Table table) {
-        return "";
     }
 
     @Override
@@ -516,33 +567,24 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
      */
     @Override
     public StringBuilder genQueryOption(QueryData queryData) {
-
-        String where = queryData.getOption().getWhere();
-        String order = queryData.getOption().getOrder();
-        String limitStart = queryData.getOption().getLimitStart();
-        String limitEnd = queryData.getOption().getLimitEnd();
-
         StringBuilder optionBuilder = new StringBuilder()
                 .append("select * from ")
                 .append(queryData.getSchemaName())
                 .append(".")
                 .append(queryData.getTableName());
-
-        if (where != null && !where.isEmpty()) {
-            optionBuilder.append(" where ").append(where);
+        if (Asserts.isNotNull(queryData.getOption())) {
+            String where = queryData.getOption().getWhere();
+            if (Asserts.isNotNullString(where)) {
+                optionBuilder.append(" where ").append(where);
+            }
+            String order = queryData.getOption().getOrder();
+            if (Asserts.isNotNullString(order)) {
+                optionBuilder.append(" order by ").append(order);
+            }
+            int limitStart = queryData.getOption().getLimitStart();
+            int limitEnd = queryData.getOption().getLimitEnd();
+            optionBuilder.append(" limit ").append(limitStart).append(",").append(limitEnd);
         }
-        if (order != null && !order.isEmpty()) {
-            optionBuilder.append(" order by ").append(order);
-        }
-
-        if (TextUtil.isEmpty(limitStart)) {
-            limitStart = "0";
-        }
-        if (TextUtil.isEmpty(limitEnd)) {
-            limitEnd = "100";
-        }
-        optionBuilder.append(" limit ").append(limitStart).append(",").append(limitEnd);
-
         return optionBuilder;
     }
 
@@ -566,15 +608,15 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
                 close(preparedStatement, results);
                 return result;
             }
+            final AbstractJdbcTypeConvert typeConvert = getTypeConvert();
             ResultSetMetaData metaData = results.getMetaData();
             for (int i = 1; i <= metaData.getColumnCount(); i++) {
                 columnNameList.add(metaData.getColumnLabel(i));
                 Column column = new Column();
                 column.setName(metaData.getColumnLabel(i));
                 column.setType(metaData.getColumnTypeName(i));
-                column.setAutoIncrement(metaData.isAutoIncrement(i));
-                column.setNullable(metaData.isNullable(i) != 0);
-                column.setJavaType(getTypeConvert().convert(column, config));
+                column.setNullable(metaData.isNullable(i) != ResultSetMetaData.columnNoNulls);
+                column.setDataType(typeConvert.convert(column, config));
                 columns.add(column);
             }
             result.setColumns(columnNameList);
@@ -582,8 +624,7 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
                 LinkedHashMap<String, Object> data = new LinkedHashMap<>();
                 for (Column column : columns) {
                     String name = column.getName();
-                    String type = column.getType();
-                    Object value = getTypeConvert().convertValue(results, name, type);
+                    Object value = typeConvert.convertValue(results, name, column.getDataType());
                     if (Asserts.isNotNull(value)) {
                         data.put(name, value.toString());
                     } else {
@@ -600,10 +641,39 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
         } catch (Exception e) {
             result.error(LogUtil.getError(e));
             log.error("Query failed", e);
+        } finally {
+            close(preparedStatement, results);
         }
-        close(preparedStatement, results);
         result.setRowData(datas);
         return result;
+    }
+
+    @Override
+    public long count(String schemaName, String tableName) {
+        PreparedStatement preparedStatement = null;
+        ResultSet results = null;
+        long count = 0;
+        try {
+            preparedStatement =
+                    conn.get().prepareStatement(String.format("select count(1) cnt from %s.%s", schemaName, tableName));
+            results = preparedStatement.executeQuery();
+            if (Asserts.isNull(results)) {
+                close(preparedStatement, results);
+                return 0;
+            }
+            while (results.next()) {
+                Object value = getTypeConvert().convertValue(results, "cnt", DataTypes.BIGINT.toColumnType(false));
+                if (Asserts.isNotNull(value)) {
+                    count = Long.parseLong(value.toString());
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Count failed", e);
+        } finally {
+            close(preparedStatement, results);
+        }
+        return count;
     }
 
     /**
@@ -733,11 +803,6 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
         return sqlExplainResults;
     }
 
-    @Override
-    public Map<String, String> getFlinkColumnTypeConversion() {
-        return new HashMap<>();
-    }
-
     public List<Map<String, String>> getSplitSchemaList() {
         PreparedStatement preparedStatement = null;
         ResultSet results = null;
@@ -766,6 +831,7 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
             }
         } catch (SQLException e) {
             log.error("GetSplitSchemaList failed", e);
+            throw new BusException(e.getMessage());
         } finally {
             close(preparedStatement, results);
         }
@@ -799,6 +865,7 @@ public abstract class AbstractJdbcDriver extends AbstractDriver<AbstractJdbcConf
                     .stream()
                     .map(x -> {
                         Table tableInfo = new Table();
+                        tableInfo.setDriverType(getType());
                         tableInfo.setName(getReValue(x.get(dbQuery.tableName()), splitConfig));
                         tableInfo.setComment(x.get(dbQuery.tableComment()));
                         tableInfo.setSchema(getReValue(x.get(dbQuery.schemaName()), splitConfig));

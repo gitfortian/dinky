@@ -21,7 +21,6 @@ package org.dinky.cdc.doris;
 
 import org.dinky.assertion.Asserts;
 import org.dinky.cdc.AbstractSinkBuilder;
-import org.dinky.cdc.CDCBuilder;
 import org.dinky.cdc.SinkBuilder;
 import org.dinky.data.model.FlinkCDCConfig;
 import org.dinky.data.model.Schema;
@@ -32,8 +31,7 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
-import org.apache.doris.flink.sink.writer.JsonDebeziumSchemaSerializer;
-import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
+import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -42,12 +40,10 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.UUID;
 
 public class DorisSchemaEvolutionSinkBuilder extends AbstractSinkBuilder implements Serializable {
 
@@ -71,11 +67,12 @@ public class DorisSchemaEvolutionSinkBuilder extends AbstractSinkBuilder impleme
 
     @SuppressWarnings("rawtypes")
     @Override
-    public DataStreamSource<String> build(
-            CDCBuilder cdcBuilder,
+    public void build(
             StreamExecutionEnvironment env,
             CustomTableEnvironment customTableEnvironment,
             DataStreamSource<String> dataStreamSource) {
+
+        init(env, customTableEnvironment);
 
         Map<String, String> sink = config.getSink();
 
@@ -84,41 +81,46 @@ public class DorisSchemaEvolutionSinkBuilder extends AbstractSinkBuilder impleme
         properties.setProperty("format", "json");
         properties.setProperty("read_json_by_line", "true");
 
-        final List<Schema> schemaList = config.getSchemaList();
-        if (!Asserts.isNotNullCollection(schemaList)) {
-            return dataStreamSource;
-        }
+        SingleOutputStreamOperator<Map> mapOperator = deserialize(dataStreamSource);
+        logger.info("Build deserialize successful...");
 
-        SingleOutputStreamOperator<Map> mapOperator =
-                dataStreamSource.map(x -> objectMapper.readValue(x, Map.class)).returns(Map.class);
-        final String schemaFieldName = config.getSchemaFieldName();
-
-        Map<Table, OutputTag<String>> tagMap = new HashMap<>();
-        Map<String, Table> tableMap = new HashMap<>();
-        for (Schema schema : schemaList) {
+        List<Schema> sortedSchemaList = getSortedSchemaList();
+        final Map<String, Table> tableMap = new LinkedHashMap<>();
+        for (Schema schema : sortedSchemaList) {
             for (Table table : schema.getTables()) {
-                OutputTag<String> outputTag = new OutputTag<String>(getSinkTableName(table)) {};
-                tagMap.put(table, outputTag);
                 tableMap.put(table.getSchemaTableName(), table);
             }
         }
-
-        SingleOutputStreamOperator<String> process = mapOperator.process(new ProcessFunction<Map, String>() {
-
-            @Override
-            public void processElement(Map map, Context ctx, Collector<String> out) throws Exception {
-                LinkedHashMap source = (LinkedHashMap) map.get("source");
-                String result = objectMapper.writeValueAsString(map);
-                try {
-                    Table table = tableMap.get(source.get(schemaFieldName).toString()
-                            + "."
-                            + source.get("table").toString());
-                    ctx.output(tagMap.get(table), result);
-                } catch (Exception e) {
-                    out.collect(result);
-                }
+        partitionByTableAndPrimarykey(mapOperator, tableMap);
+        logger.info("Build partitionBy successful...");
+        Map<Table, OutputTag<String>> tagMap = new LinkedHashMap<>();
+        for (Schema schema : getSortedSchemaList()) {
+            for (Table table : schema.getTables()) {
+                OutputTag<String> outputTag = new OutputTag<String>(getSinkTableName(table)) {};
+                tagMap.put(table, outputTag);
             }
-        });
+        }
+        final String schemaFieldName = config.getSchemaFieldName();
+        SingleOutputStreamOperator<String> process = mapOperator
+                .process(new ProcessFunction<Map, String>() {
+
+                    @Override
+                    public void processElement(Map map, Context ctx, Collector<String> out) throws Exception {
+                        LinkedHashMap source = (LinkedHashMap) map.get("source");
+                        String result = objectMapper.writeValueAsString(map);
+                        try {
+                            Table table =
+                                    tableMap.get(source.get(schemaFieldName).toString()
+                                            + "."
+                                            + source.get("table").toString());
+                            ctx.output(tagMap.get(table), result);
+                        } catch (Exception e) {
+                            out.collect(result);
+                        }
+                    }
+                })
+                .name("Shunt");
+        logger.info("Build shunt successful...");
 
         tagMap.forEach((table, v) -> {
             DorisOptions dorisOptions = DorisOptions.builder()
@@ -151,8 +153,9 @@ public class DorisSchemaEvolutionSinkBuilder extends AbstractSinkBuilder impleme
                         getSinkSchemaName(table),
                         getSinkTableName(table)));
             } else {
-                executionBuilder.setLabelPrefix(String.format(
-                        "dinky-%s_%s%s", getSinkSchemaName(table), getSinkTableName(table), UUID.randomUUID()));
+                // flink-cdc-pipeline-connector-doris 3.0.0 以上版本内部已经拼接了 SchemaName + SinkTableName，并且约定 TableLabel
+                // 正则表达式如下 --> regex: ^[-_A-Za-z0-9]{1,128}$
+                executionBuilder.setLabelPrefix("dinky");
             }
 
             if (sink.containsKey(DorisSinkOptions.SINK_MAX_RETRIES.key())) {
@@ -161,11 +164,20 @@ public class DorisSchemaEvolutionSinkBuilder extends AbstractSinkBuilder impleme
 
             executionBuilder.setStreamLoadProp(properties).setDeletable(true);
 
+            JsonDebeziumSchemaSerializer.Builder jsonDebeziumSchemaSerializerBuilder =
+                    JsonDebeziumSchemaSerializer.builder();
+
+            // use new schema change
+            if (sink.containsKey(DorisSinkOptions.SINK_USE_NEW_SCHEMA_CHANGE.key())) {
+                jsonDebeziumSchemaSerializerBuilder.setNewSchemaChange(
+                        Boolean.valueOf(sink.get(DorisSinkOptions.SINK_USE_NEW_SCHEMA_CHANGE.key())));
+            }
+
             DorisSink.Builder<String> builder = DorisSink.builder();
             builder.setDorisReadOptions(DorisReadOptions.builder().build())
                     .setDorisExecutionOptions(executionBuilder.build())
                     .setDorisOptions(dorisOptions)
-                    .setSerializer((DorisRecordSerializer<String>) JsonDebeziumSchemaSerializer.builder()
+                    .setSerializer(jsonDebeziumSchemaSerializerBuilder
                             .setDorisOptions(dorisOptions)
                             .build());
 
@@ -176,7 +188,6 @@ public class DorisSchemaEvolutionSinkBuilder extends AbstractSinkBuilder impleme
                             "Doris Schema Evolution Sink(table=[%s.%s])",
                             getSinkSchemaName(table), getSinkTableName(table)));
         });
-        return dataStreamSource;
     }
 
     @Override

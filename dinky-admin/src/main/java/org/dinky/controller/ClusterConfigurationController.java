@@ -40,6 +40,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.dev33.satoken.annotation.SaMode;
 import io.swagger.annotations.Api;
@@ -58,6 +59,7 @@ import lombok.extern.slf4j.Slf4j;
 @Api(tags = "Cluster Config Controller")
 @RequestMapping("/api/clusterConfiguration")
 @RequiredArgsConstructor
+@SaCheckLogin
 public class ClusterConfigurationController {
 
     private final ClusterConfigurationService clusterConfigurationService;
@@ -104,20 +106,20 @@ public class ClusterConfigurationController {
     }
 
     /**
-     * query cluster config list of enabled
+     * query cluster config list of all
      *
      * @return
      */
-    @GetMapping("/listEnabledAll")
-    @ApiOperation("Cluster Config List Enabled All")
+    @GetMapping("/listAll")
+    @ApiOperation("Cluster Config List All")
     @ApiImplicitParam(
             name = "para",
             value = "Cluster Configuration",
             dataType = "JsonNode",
             paramType = "body",
             required = true)
-    public Result<List<ClusterConfiguration>> listEnabledAllClusterConfig() {
-        return Result.succeed(clusterConfigurationService.listEnabledAllClusterConfig());
+    public Result<List<ClusterConfiguration>> listAllClusterConfig() {
+        return Result.succeed(clusterConfigurationService.listAllClusterConfig());
     }
 
     /**
@@ -132,8 +134,7 @@ public class ClusterConfigurationController {
     @ApiImplicitParam(name = "id", value = "id", dataType = "Integer", paramType = "query", required = true)
     @SaCheckPermission(value = PermissionConstants.REGISTRATION_CLUSTER_CONFIG_DELETE)
     public Result<Void> deleteById(@RequestParam("id") Integer id) {
-        boolean removeById = clusterConfigurationService.removeById(id);
-        if (removeById) {
+        if (clusterConfigurationService.deleteClusterConfigurationById(id)) {
             return Result.succeed(Status.DELETE_SUCCESS);
         } else {
             return Result.failed(Status.DELETE_FAILED);

@@ -29,6 +29,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.http.HttpRequest;
@@ -40,8 +41,9 @@ import io.swagger.annotations.ApiOperation;
 import lombok.SneakyThrows;
 
 @Controller
-@Api(tags = "Flink Proxy Controller", hidden = true, description = "Flink Proxy API")
+@Api(tags = "Flink Proxy API", hidden = true)
 @RequestMapping(FlinkProxyController.API)
+@SaCheckLogin
 public class FlinkProxyController {
     public static final String API = "/api/flink/";
 
@@ -71,7 +73,11 @@ public class FlinkProxyController {
     @SneakyThrows
     public void writeToHttpServletResponse(HttpResponse httpResponse, HttpServletResponse resp) {
         if (httpResponse.body() != null) {
-            httpResponse.headers().forEach((k, v) -> resp.addHeader(k, v.get(0)));
+            httpResponse.headers().forEach((k, v) -> {
+                if (StrUtil.isNotBlank(k)) {
+                    resp.addHeader(k, v.get(0));
+                }
+            });
             httpResponse.writeBody(resp.getOutputStream(), true, null);
         }
     }

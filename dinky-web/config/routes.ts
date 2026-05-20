@@ -30,6 +30,12 @@
  */
 export default [
   {
+    path: '/welcome',
+    component: './Other/Welcome',
+    layout: false,
+    hideInMenu: true
+  },
+  {
     path: '/user',
     layout: false,
     routes: [
@@ -42,7 +48,13 @@ export default [
   },
   {
     path: '/',
-    redirect: '/home'
+    redirect: '/redirect'
+  },
+  {
+    path: '/redirect',
+    component: './Other/Redirect',
+    layout: false,
+    hideInMenu: true
   },
   {
     path: '/home',
@@ -113,10 +125,22 @@ export default [
         path: '/registration/datasource',
         name: 'datasource',
         icon: 'DatabaseOutlined',
-        component: './RegCenter/DataSource',
         routes: [
           {
-            path: '/registration/datasource/detail/:id'
+            path: '/registration/datasource',
+            redirect: '/registration/datasource/list'
+          },
+          {
+            path: '/registration/datasource/list',
+            name: 'list',
+            hideInMenu: true,
+            component: './RegCenter/DataSource'
+          },
+          {
+            path: '/registration/datasource/detail',
+            name: 'detail',
+            hideInMenu: true,
+            component: './RegCenter/DataSource/components/DataSourceDetail'
           }
         ]
       },
@@ -139,6 +163,11 @@ export default [
             path: '/registration/alert/template',
             name: 'template',
             component: './RegCenter/Alert/AlertTemplate'
+          },
+          {
+            path: '/registration/alert/rule',
+            name: 'rule',
+            component: './RegCenter/Alert/AlertRule'
           }
         ]
       },
@@ -220,6 +249,12 @@ export default [
         name: 'token',
         icon: 'SecurityScanOutlined',
         component: './AuthCenter/Token'
+      },
+      {
+        path: '/auth/approval',
+        name: 'approval',
+        icon: 'AuditOutlined',
+        component: './AuthCenter/Approval'
       }
     ]
   },
@@ -246,34 +281,52 @@ export default [
         icon: 'InfoCircleOutlined',
         component: './SettingCenter/SystemLogs'
       },
+      // {
+      //   path: '/settings/process',
+      //   name: 'process',
+      //   icon: 'ReconciliationOutlined',
+      //   component: './SettingCenter/Process'
+      // },
       {
-        path: '/settings/process',
-        name: 'process',
-        icon: 'ReconciliationOutlined',
-        component: './SettingCenter/Process'
-      },
-      {
-        path: '/settings/alertrulelist',
-        name: 'alertrulelist',
-        icon: 'ReconciliationOutlined',
-        component: './SettingCenter/AlertRule'
+        path: '/settings/classloaderjars',
+        name: 'classloaderjars',
+        icon: 'CodepenOutlined',
+        component: './SettingCenter/ClassLoaderJars'
       }
     ]
   },
+
   {
-    path: '/metrics',
-    name: 'metrics',
+    path: '/dashboard',
+    name: 'dashboard',
     icon: 'DashboardOutlined',
     footerRender: false,
-    component: './Metrics'
+    routes: [
+      {
+        path: '/dashboard',
+        redirect: '/dashboard/list'
+      },
+      {
+        path: '/dashboard/list',
+        name: 'list',
+        hideInMenu: true,
+        component: './Dashboard'
+      },
+      {
+        path: '/dashboard/dashboard-layout',
+        name: 'chart',
+        hideInMenu: true,
+        component: './Dashboard/DashboardLayout'
+      }
+    ]
   },
-  {
-    path: '/about',
-    name: 'about',
-    icon: 'SmileOutlined',
-    footerRender: false,
-    component: './Other/About'
-  },
+  // {
+  //   path: '/about',
+  //   name: 'about',
+  //   icon: 'SmileOutlined',
+  //   footerRender: false,
+  //   component: './Other/About'
+  // },
   {
     path: '/account/center',
     footerRender: false,

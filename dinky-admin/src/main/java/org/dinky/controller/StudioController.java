@@ -33,6 +33,7 @@ import org.dinky.data.result.IResult;
 import org.dinky.data.result.Result;
 import org.dinky.data.result.SelectResult;
 import org.dinky.explainer.lineage.LineageResult;
+import org.dinky.sandbox.metadata.TableInfo;
 import org.dinky.service.StudioService;
 
 import java.util.List;
@@ -46,6 +47,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiImplicitParams;
@@ -62,6 +64,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @Api(tags = "Data Studio Controller")
 @RequestMapping("/api/studio")
+@SaCheckLogin
 @RequiredArgsConstructor
 public class StudioController {
 
@@ -83,10 +86,39 @@ public class StudioController {
 
     /** 根据jobId获取数据 */
     @GetMapping("/getJobData")
-    @ApiOperation("Get Job Plan")
-    @ApiImplicitParam(name = "jobId", value = "Get Job Plan", required = true, dataType = "String", paramType = "query")
+    @ApiOperation("Get Job Data")
+    @ApiImplicitParam(name = "jobId", value = "job id", required = true, dataType = "String", paramType = "query")
     public Result<SelectResult> getJobData(@RequestParam String jobId) {
         return Result.succeed(studioService.getJobData(jobId));
+    }
+
+    /** 根据boxName和表名获取数据 */
+    @GetMapping("/getJobDataByTableName")
+    @ApiOperation("Get Job Data By Table Name")
+    @ApiImplicitParams({
+        @ApiImplicitParam(
+                name = "boxName",
+                value = "box name",
+                required = true,
+                dataType = "String",
+                paramType = "query"),
+        @ApiImplicitParam(
+                name = "tableName",
+                value = "table name",
+                required = true,
+                dataType = "String",
+                paramType = "query")
+    })
+    public Result<SelectResult> getJobDataByTableName(@RequestParam String boxName, @RequestParam String tableName) {
+        return Result.succeed(studioService.getJobDataByTableName(boxName, tableName));
+    }
+
+    /** 根据jobId获取所有的结果表列表 */
+    @GetMapping("/getJobDataTableInfos")
+    @ApiOperation("Get Job Data Table Infos")
+    @ApiImplicitParam(name = "jobId", value = "job id", required = true, dataType = "String", paramType = "query")
+    public Result<List<TableInfo>> getJobDataTableInfos(@RequestParam String jobId) {
+        return Result.succeed(studioService.getJobDataTableInfos(jobId));
     }
 
     /** 获取单任务实例的血缘分析 */
@@ -164,5 +196,31 @@ public class StudioController {
     })
     public Result<List<Column>> getMSColumns(@RequestBody StudioMetaStoreDTO studioMetaStoreDTO) {
         return Result.succeed(studioService.getMSColumns(studioMetaStoreDTO));
+    }
+
+    /** Drop Meta Store Flink Table */
+    @PostMapping("/dropMSTable")
+    @ApiOperation("Drop Flink Table")
+    @ApiImplicitParams({
+        @ApiImplicitParam(name = "envId", value = "envId", required = true, dataType = "Integer", paramType = "query"),
+        @ApiImplicitParam(
+                name = "catalog",
+                value = "catalog",
+                required = true,
+                dataType = "String",
+                paramType = "query"),
+        @ApiImplicitParam(
+                name = "database",
+                value = "database",
+                required = true,
+                dataType = "String",
+                paramType = "query"),
+        @ApiImplicitParam(name = "table", value = "table", required = true, dataType = "String", paramType = "query")
+    })
+    public Result<List<Column>> dropMSTable(@RequestBody StudioMetaStoreDTO studioMetaStoreDTO) {
+        if (studioService.dropMSTable(studioMetaStoreDTO)) {
+            return Result.succeed();
+        }
+        return Result.failed();
     }
 }

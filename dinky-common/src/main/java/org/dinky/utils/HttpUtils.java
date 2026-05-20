@@ -19,7 +19,9 @@
 
 package org.dinky.utils;
 
+import org.dinky.assertion.Asserts;
 import org.dinky.data.model.ProxyConfig;
+import org.dinky.data.socket.AddressInfo;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -39,13 +41,13 @@ import org.apache.http.util.EntityUtils;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.CollectionUtils;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.RandomUtil;
 import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
 
@@ -81,7 +83,7 @@ public class HttpUtils {
             int statusCode = response.getStatusLine().getStatusCode();
 
             if (statusCode == HttpStatus.SC_OK) {
-                logger.info(
+                logger.debug(
                         "post data success, return http status code: {} , msg: {}",
                         statusCode,
                         response.getStatusLine().getReasonPhrase());
@@ -148,19 +150,83 @@ public class HttpUtils {
      * @param timeout
      * @param consumer
      */
-    public static void asyncRequest(
+    public static void request(
             List<String> addressList, String urlParams, int timeout, Consumer<HttpResponse> consumer) {
-        if (CollUtil.isEmpty(addressList)) {
+        if (CollectionUtils.isEmpty(addressList)) {
             return;
         }
-        int index = RandomUtil.randomInt(addressList.size());
-        String url = addressList.get(index);
+
+        CompletableFuture.anyOf(addressList.stream()
+                        .map(url -> CompletableFuture.runAsync(() -> {
+                            try {
+                                HttpUtil.createGet(url + urlParams)
+                                        .disableCache()
+                                        .timeout(timeout)
+                                        .then(consumer);
+                            } catch (Exception e) {
+                                logger.error("url-timeout :{} ", url);
+                            }
+                        }))
+                        .toArray(CompletableFuture[]::new))
+                .join();
+    }
+
+    public static AddressInfo parseAddress(String address) {
+        if (Asserts.isNullString(address)) {
+            throw new IllegalArgumentException("address is empty");
+        }
+
+        // Remove the protocol prefix
+        String cleanAddress = address;
+        if (address.contains("://")) {
+            String[] protocolSplit = address.split("://", 2);
+            if (protocolSplit.length != 2) {
+                throw new IllegalArgumentException("Invalid URL format: " + address);
+            }
+            cleanAddress = protocolSplit[1];
+        }
+
+        // IPv6
+        if (cleanAddress.startsWith("[") && cleanAddress.contains("]:")) {
+            int endBracket = cleanAddress.indexOf("]");
+            if (endBracket == -1) {
+                throw new IllegalArgumentException("Invalid IPv6 address format: " + address);
+            }
+            String host = cleanAddress.substring(1, endBracket);
+            String portStr = cleanAddress.substring(endBracket + 2);
+            try {
+                int port = Integer.parseInt(portStr);
+                if (port < 1 || port > 65535) {
+                    throw new IllegalArgumentException("Port number out of range: " + port);
+                }
+                return new AddressInfo(host, port);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid port number: " + portStr);
+            }
+        }
+
+        String[] split = cleanAddress.split(":");
+        if (split.length != 2) {
+            throw new IllegalArgumentException("Address format error, expected host:port, got: " + address);
+        }
+
+        String host = split[0];
+        String portStr = split[1];
+
+        // Verify that the hostname is not empty
+        if (Asserts.isNullString(host)) {
+            throw new IllegalArgumentException("Host cannot be empty");
+        }
+
+        // Verify the port
         try {
-            HttpUtil.createGet(url + urlParams).disableCache().timeout(timeout).then(consumer);
-        } catch (Exception e) {
-            logger.error("url-timeout :{} ", url);
-            addressList.remove(index);
-            asyncRequest(addressList, urlParams, timeout, consumer);
+            int port = Integer.parseInt(portStr);
+            if (port < 1 || port > 65535) {
+                throw new IllegalArgumentException("Port number out of range: " + port);
+            }
+            return new AddressInfo(host, port);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid port number: " + portStr);
         }
     }
 }

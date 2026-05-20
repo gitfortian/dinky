@@ -19,6 +19,8 @@
 
 package org.dinky.cdc.utils;
 
+import org.dinky.data.flink.table.FlinkTableObjectIdentifier;
+import org.dinky.data.model.Column;
 import org.dinky.data.model.FlinkCDCConfig;
 import org.dinky.data.model.Table;
 import org.dinky.utils.SqlUtil;
@@ -33,42 +35,57 @@ public class FlinkStatementUtil {
 
     private FlinkStatementUtil() {}
 
-    public static String getCDCInsertSql(Table table, String targetName, String sourceName) {
+    public static String getCDCInsertSql(
+            Table table,
+            FlinkTableObjectIdentifier targetTable,
+            FlinkTableObjectIdentifier sourceTable,
+            FlinkCDCConfig config) {
         StringBuilder sb = new StringBuilder("INSERT INTO ");
-        sb.append(targetName);
+        sb.append(targetTable.toTablePath());
         sb.append(" SELECT\n");
         for (int i = 0; i < table.getColumns().size(); i++) {
             sb.append("    ");
             if (i > 0) {
                 sb.append(",");
             }
-            sb.append(String.format("`%s`", table.getColumns().get(i).getName()))
-                    .append(" \n");
+            sb.append(getColumnProcessing(table.getColumns().get(i), config)).append(" \n");
         }
-        sb.append(" FROM `");
-        sb.append(sourceName);
-        sb.append("`");
+        sb.append(" FROM ");
+        sb.append(sourceTable.toTablePath());
         return sb.toString();
+    }
+
+    public static String getColumnProcessing(Column column, FlinkCDCConfig config) {
+        String configType = config.getType();
+        String columnType = column.getType();
+        if (configType.contains("postgres-cdc")
+                && (columnType.contains("numeric") || columnType.contains("decimal"))
+                && column.getPrecision().intValue() > 38) {
+            return " CAST(" + column.getName() + " AS STRING) AS `" + column.getName() + "`";
+        } else {
+            return String.format("`%s`", column.getName());
+        }
     }
 
     public static String getFlinkDDL(
             Table table,
-            String tableName,
+            FlinkTableObjectIdentifier flinkTable,
             FlinkCDCConfig config,
             String sinkSchemaName,
-            String sinkTableName,
+            FlinkTableObjectIdentifier sinkTableName,
             String pkList) {
         StringBuilder sb = new StringBuilder();
         if (Integer.parseInt(EnvironmentInformation.getVersion().split("\\.")[1]) < 13) {
-            sb.append("CREATE TABLE  `");
+            sb.append("CREATE TABLE  ");
         } else {
-            sb.append("CREATE TABLE IF NOT EXISTS `");
+            sb.append("CREATE TABLE IF NOT EXISTS ");
         }
-        sb.append(tableName);
-        sb.append("` (\n");
+        sb.append(flinkTable.toTablePath());
+        sb.append(" (\n");
         List<String> pks = new ArrayList<>();
         for (int i = 0; i < table.getColumns().size(); i++) {
-            String type = table.getColumns().get(i).getFlinkType();
+            String type =
+                    table.getColumns().get(i).getDataType().getLogicalType().asSummaryString();
             sb.append("    ");
             if (i > 0) {
                 sb.append(",");
@@ -97,7 +114,7 @@ public class FlinkStatementUtil {
             sb.append(pksb);
         }
         sb.append(") WITH (\n");
-        sb.append(getSinkConfigurationString(config, sinkSchemaName, sinkTableName, pkList));
+        sb.append(getSinkConfigurationString(config, sinkSchemaName, sinkTableName.getObjectName(), pkList));
         sb.append(")\n");
         return sb.toString();
     }
@@ -129,6 +146,9 @@ public class FlinkStatementUtil {
     private static String convertSinkColumnType(String type, FlinkCDCConfig config) {
         if (config.getSink().get("connector").equals("hudi") && (type.equals("TIMESTAMP"))) {
             return "TIMESTAMP(3)";
+        }
+        if (config.getSink().get("connector").equals("doris") && (type.equals("TIME"))) {
+            return "STRING";
         }
         return type;
     }

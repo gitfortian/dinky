@@ -20,8 +20,10 @@
 import { CircleBtn } from '@/components/CallBackButton/CircleBtn';
 import { l } from '@/utils/intl';
 import {
+  ClearOutlined,
   CloudDownloadOutlined,
   DownCircleFilled,
+  EnterOutlined,
   StopFilled,
   SyncOutlined,
   UpCircleFilled,
@@ -48,6 +50,9 @@ type EditFloatBtnProps = {
   handleUpScroll?: () => void; // up scroll callback
   handleDownScroll?: () => void; // down scroll callback
   handleDownloadLog?: () => string; // download log callback
+  handleWrap?: () => void; // wrap callback
+  clearContent?: () => void; // clear content callback
+  btnExtraContent?: any; //custom content
 };
 const EditorFloatBtn: React.FC<EditFloatBtnProps> = (props) => {
   /**
@@ -65,7 +70,10 @@ const EditorFloatBtn: React.FC<EditFloatBtnProps> = (props) => {
     handleBackBottom,
     handleUpScroll,
     handleDownScroll,
-    handleDownloadLog
+    handleDownloadLog,
+    handleWrap,
+    clearContent,
+    btnExtraContent
   } = props;
 
   /**
@@ -96,6 +104,14 @@ const EditorFloatBtn: React.FC<EditFloatBtnProps> = (props) => {
             )}
           </>
         )}
+        {btnExtraContent && <>{btnExtraContent}</>}
+        {clearContent && (
+          <CircleBtn
+            icon={<ClearOutlined twoToneColor={'red'} />}
+            onClick={clearContent}
+            title={l('button.clear')}
+          />
+        )}
         <CircleBtn
           icon={<VerticalAlignTopOutlined />}
           onClick={handleBackTop}
@@ -120,6 +136,11 @@ const EditorFloatBtn: React.FC<EditFloatBtnProps> = (props) => {
           icon={<CloudDownloadOutlined />}
           href={handleDownloadLog ? handleDownloadLog() : '123 '}
           title={'Download'}
+        />
+        <CircleBtn
+          icon={<EnterOutlined />}
+          onClick={() => handleWrap && handleWrap()}
+          title={l('button.wrap')}
         />
       </Space>
     </>

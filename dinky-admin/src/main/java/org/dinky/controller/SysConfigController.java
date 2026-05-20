@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaIgnore;
 import cn.hutool.core.lang.Dict;
 import cn.hutool.core.map.MapUtil;
@@ -54,6 +55,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @Api(tags = "System Config Controller")
+@SaCheckLogin
 @RequestMapping("/api/sysConfig")
 @RequiredArgsConstructor
 public class SysConfigController {
@@ -107,5 +109,19 @@ public class SysConfigController {
                 .flatMap(List::stream)
                 .collect(Collectors.toList());
         return Result.succeed(configList);
+    }
+
+    @GetMapping("/getNeededCfg")
+    @ApiOperation("Get Needed Config")
+    @SaIgnore
+    public Result<Map<String, Object>> getNeededCfg() {
+        return sysConfigService.getNeededCfg();
+    }
+
+    @PostMapping("/setInitConfig")
+    @ApiOperation("Get Needed Config")
+    @SaIgnore
+    public Result<Void> setInitConfig(@RequestBody Map<String, Object> params) {
+        return sysConfigService.setInitConfig(params);
     }
 }

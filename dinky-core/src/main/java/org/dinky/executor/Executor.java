@@ -22,10 +22,18 @@ package org.dinky.executor;
 import org.dinky.assertion.Asserts;
 import org.dinky.classloader.DinkyClassLoader;
 import org.dinky.context.CustomTableEnvironmentContext;
+import org.dinky.data.job.JobStatement;
+import org.dinky.data.job.JobStatementType;
+import org.dinky.data.job.SqlType;
+import org.dinky.data.model.JarSubmitParam;
 import org.dinky.data.model.LineageRel;
 import org.dinky.data.result.SqlExplainResult;
+import org.dinky.explainer.print_table.PrintStatementExplainer;
 import org.dinky.interceptor.FlinkInterceptor;
 import org.dinky.interceptor.FlinkInterceptorResult;
+import org.dinky.job.JobStatementPlan;
+import org.dinky.resource.BaseResourceManager;
+import org.dinky.trans.Operations;
 import org.dinky.utils.KerberosUtil;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -59,14 +67,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import cn.hutool.core.codec.Base64;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.URLUtil;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Executor
  *
  * @since 2021/11/17
  */
+@Slf4j
 public abstract class Executor {
 
     private static final Logger logger = LoggerFactory.getLogger(Executor.class);
@@ -87,6 +99,9 @@ public abstract class Executor {
 
     // Dinky variable manager
     protected VariableManager variableManager = new VariableManager();
+
+    // mock test
+    protected boolean isMockTest = false;
 
     // return dinkyClassLoader
     public DinkyClassLoader getDinkyClassLoader() {
@@ -133,8 +148,33 @@ public abstract class Executor {
         return getTableConfig().getLocalTimeZone().getId();
     }
 
+    public boolean isMockTest() {
+        return isMockTest;
+    }
+
+    public void setMockTest(boolean mockTest) {
+        isMockTest = mockTest;
+    }
+
+    private void initClassloader(DinkyClassLoader classLoader) {
+        if (classLoader != null) {
+            try {
+                StreamExecutionEnvironment env = this.environment;
+                // Fix the Classloader in the env above  to appClassLoader, causing ckp to fail to compile
+                ReflectUtil.setFieldValue(env, "userClassloader", classLoader);
+                env.configure(env.getConfiguration(), classLoader);
+            } catch (Throwable e) {
+                log.warn(
+                        "The version of flink does not have a Classloader field and the classloader cannot be set.", e);
+            }
+        }
+    }
+
     protected void init(DinkyClassLoader classLoader) {
+        initClassloader(classLoader);
+        initFileSystem();
         this.dinkyClassLoader = classLoader;
+        Thread.currentThread().setContextClassLoader(classLoader);
         if (executorConfig.isValidParallelism()) {
             environment.setParallelism(executorConfig.getParallelism());
         }
@@ -150,14 +190,59 @@ public abstract class Executor {
         if (executorConfig.isValidConfig()) {
             for (Map.Entry<String, String> entry : executorConfig.getConfig().entrySet()) {
                 configuration.setString(entry.getKey(), entry.getValue());
+                setConfig.put(entry.getKey(), entry.getValue());
+                logger.info("setConfig key: [{}], value: [{}]", entry.getKey(), entry.getValue());
             }
         }
         if (executorConfig.isValidVariables()) {
             variableManager.registerVariable(executorConfig.getVariables());
         }
+
+        isMockTest = false;
+    }
+
+    private void initFileSystem() {
+        BaseResourceManager.initResourceManager();
     }
 
     abstract CustomTableEnvironment createCustomTableEnvironment(ClassLoader classLoader);
+
+    public JobStatementPlan parseStatementIntoJobStatementPlan(String[] statements) {
+        JobStatementPlan jobStatementPlan = new JobStatementPlan();
+        for (String item : statements) {
+            String statement = pretreatStatement(item);
+            if (statement.isEmpty()) {
+                continue;
+            }
+            SqlType operationType = Operations.getOperationType(statement);
+            if (operationType.equals(SqlType.SET) || operationType.equals(SqlType.RESET)) {
+                jobStatementPlan.addJobStatement(statement, JobStatementType.SET, operationType);
+            } else if (operationType.equals(SqlType.EXECUTE_JAR)) {
+                JarSubmitParam jarSubmitParam = JarSubmitParam.build(statement);
+                String args = jarSubmitParam.getArgs();
+                jarSubmitParam.setArgs("base64@"
+                        + Base64.encode(
+                                isUseSqlFragment() ? getVariableManager().parseVariable(args) : args));
+                jobStatementPlan.addJobStatement(
+                        jarSubmitParam.getStatement(), JobStatementType.EXECUTE_JAR, operationType);
+            } else if (operationType.equals(SqlType.EXECUTE)) {
+                jobStatementPlan.addJobStatement(statement, JobStatementType.PIPELINE, operationType);
+            } else if (operationType.equals(SqlType.PRINT)) {
+                for (String tableName : PrintStatementExplainer.getTableNames(statement)) {
+                    jobStatementPlan.addJobStatement(
+                            PrintStatementExplainer.getCreateStatement(
+                                    tableName, getExecutorConfig().getConfig()),
+                            JobStatementType.SQL,
+                            SqlType.CTAS);
+                }
+            } else if (SqlType.getTransSqlTypes().contains(operationType)) {
+                jobStatementPlan.addJobStatement(statement, JobStatementType.SQL, operationType);
+            } else {
+                jobStatementPlan.addJobStatement(statement, JobStatementType.DDL, operationType);
+            }
+        }
+        return jobStatementPlan;
+    }
 
     public String pretreatStatement(String statement) {
         return FlinkInterceptor.pretreatStatement(this, statement);
@@ -201,15 +286,15 @@ public abstract class Executor {
         }
 
         Configuration configuration = tableEnvironment.getConfig().getConfiguration();
-        configuration.setString(PythonOptions.PYTHON_FILES, String.join(",", udfPyFilePath));
-        configuration.setString(PythonOptions.PYTHON_CLIENT_EXECUTABLE, executable);
+        configuration.set(PythonOptions.PYTHON_FILES, String.join(",", udfPyFilePath));
+        configuration.set(PythonOptions.PYTHON_CLIENT_EXECUTABLE, executable);
     }
 
     private void addJar(String... jarPath) {
         Configuration configuration = tableEnvironment.getRootConfiguration();
         List<String> jars = configuration.get(PipelineOptions.JARS);
-        if (jars == null) {
-            configuration.set(PipelineOptions.JARS, CollUtil.newArrayList(jarPath));
+        if (CollUtil.isEmpty(jars)) {
+            tableEnvironment.addConfiguration(PipelineOptions.JARS, CollUtil.newArrayList(jarPath));
         } else {
             CollUtil.addAll(jars, jarPath);
         }
@@ -224,15 +309,19 @@ public abstract class Executor {
         if (Asserts.isNotNullString(statement) && !pretreatExecute(statement).isNoExecute()) {
             return tableEnvironment.explainSqlRecord(statement, extraDetails);
         }
-        return null;
+        return SqlExplainResult.INVALID_EXPLAIN_RESULT;
     }
 
-    public ObjectNode getStreamGraph(List<String> statements) {
+    public StreamGraph getStreamGraphFromStatement(List<JobStatement> statements) {
+        return tableEnvironment.getStreamGraphFromInserts(statements);
+    }
+
+    public ObjectNode getStreamGraph(List<JobStatement> statements) {
         StreamGraph streamGraph = tableEnvironment.getStreamGraphFromInserts(statements);
         return getStreamGraphJsonNode(streamGraph);
     }
 
-    private ObjectNode getStreamGraphJsonNode(StreamGraph streamGraph) {
+    public ObjectNode getStreamGraphJsonNode(StreamGraph streamGraph) {
         JSONGenerator jsonGenerator = new JSONGenerator(streamGraph);
         String json = jsonGenerator.getJSON();
         ObjectMapper mapper = new ObjectMapper();
@@ -242,30 +331,28 @@ public abstract class Executor {
         } catch (JsonProcessingException e) {
             logger.error("Get stream graph json node error.", e);
         }
-
         return objectNode;
     }
 
     public StreamGraph getStreamGraph() {
-        return environment.getStreamGraph();
+        return environment.getStreamGraph(false);
     }
 
-    public ObjectNode getStreamGraphFromDataStream(List<String> statements) {
+    public StreamGraph getStreamGraphFromCustomStatements(List<String> statements) {
         statements.forEach(this::executeSql);
-        return getStreamGraphJsonNode(getStreamGraph());
+        return getStreamGraph();
     }
 
-    public JobPlanInfo getJobPlanInfo(List<String> statements) {
+    public JobPlanInfo getJobPlanInfoFromStatements(List<JobStatement> statements) {
         return tableEnvironment.getJobPlanInfo(statements);
     }
 
-    public JobPlanInfo getJobPlanInfoFromDataStream(List<String> statements) {
-        statements.forEach(this::executeSql);
+    public JobPlanInfo getJobPlanInfo() {
         StreamGraph streamGraph = getStreamGraph();
         return new JobPlanInfo(JsonPlanGenerator.generatePlan(streamGraph.getJobGraph()));
     }
 
-    public JobGraph getJobGraphFromInserts(List<String> statements) {
+    public JobGraph getJobGraphFromInserts(List<JobStatement> statements) {
         return tableEnvironment.getJobGraphFromInserts(statements);
     }
 
@@ -275,10 +362,12 @@ public abstract class Executor {
         return statementSet.execute();
     }
 
-    public String explainStatementSet(List<String> statements) {
-        StatementSet statementSet = tableEnvironment.createStatementSet();
-        statements.forEach(statementSet::addInsertSql);
-        return statementSet.explain();
+    public TableResult executeStatements(List<JobStatement> statements) {
+        return tableEnvironment.executeStatementSet(statements);
+    }
+
+    public SqlExplainResult explainStatementSet(List<JobStatement> statements) {
+        return tableEnvironment.explainStatementSet(statements);
     }
 
     public List<LineageRel> getLineage(String statement) {

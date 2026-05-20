@@ -19,7 +19,11 @@
 
 package org.dinky.metadata.convert;
 
-import org.dinky.data.enums.ColumnType;
+import org.dinky.assertion.Asserts;
+import org.dinky.data.model.Column;
+import org.dinky.data.types.ColumnType;
+import org.dinky.data.types.DataTypes;
+import org.dinky.data.types.LogicalTypeParam;
 
 /**
  * ClickHouseTypeConvert
@@ -28,69 +32,84 @@ import org.dinky.data.enums.ColumnType;
  */
 public class ClickHouseTypeConvert extends AbstractJdbcTypeConvert {
 
-    // Use mysql now,and welcome to fix it.
-    public ClickHouseTypeConvert() {
-        this.convertMap.clear();
-        register("tinyint", ColumnType.BYTE);
-        register("smallint", ColumnType.SHORT, ColumnType.JAVA_LANG_SHORT);
-        register("bigint unsigned", ColumnType.DECIMAL);
-        register("numeric", ColumnType.DECIMAL);
-        register("decimal", ColumnType.DECIMAL);
-        register("bigint", ColumnType.LONG, ColumnType.JAVA_LANG_LONG);
-        register("int unsigned", ColumnType.LONG);
-        register("float", ColumnType.FLOAT, ColumnType.JAVA_LANG_FLOAT);
-        register("double", ColumnType.DOUBLE, ColumnType.JAVA_LANG_DOUBLE);
-        register("boolean", ColumnType.BOOLEAN, ColumnType.JAVA_LANG_BOOLEAN);
-        register("tinyint(1)", ColumnType.BOOLEAN, ColumnType.JAVA_LANG_BOOLEAN);
-        register("datetime", ColumnType.TIMESTAMP);
-        register("date", ColumnType.DATE);
-        register("time", ColumnType.TIME);
-        register("char", ColumnType.STRING);
-        register("text", ColumnType.STRING);
-        register("binary", ColumnType.BYTES);
-        register("blob", ColumnType.BYTES);
-        register("int", ColumnType.INT, ColumnType.INTEGER);
-        register("mediumint", ColumnType.INT, ColumnType.INTEGER);
-        register("smallint unsigned", ColumnType.INT, ColumnType.INTEGER);
+    @Override
+    public ColumnType convert(Column column) {
+        if (Asserts.isNull(column)) {
+            throw new RuntimeException("Column is null");
+        }
+        int length = Asserts.isNull(column.getLength()) ? 0 : column.getLength();
+        String type = Asserts.isNull(column.getType()) ? "" : column.getType().toLowerCase();
+        boolean isNullable = !column.isKeyFlag() && column.isNullable();
+        final LogicalTypeParam logicalTypeParam =
+                LogicalTypeParam.of(isNullable, length, column.getPrecision(), column.getScale());
+        if (type.contains("array")) {
+            return ColumnType.of(DataTypes.ARRAY, DataTypes.ARRAY.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("map")) {
+            return ColumnType.of(DataTypes.MAP, DataTypes.MAP.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("int8")) {
+            return ColumnType.of(DataTypes.TINYINT, DataTypes.TINYINT.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("int16")) {
+            return ColumnType.of(DataTypes.SMALLINT, DataTypes.SMALLINT.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("int32")) {
+            return ColumnType.of(DataTypes.INT, DataTypes.INT.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("int64")) {
+            return ColumnType.of(DataTypes.BIGINT, DataTypes.BIGINT.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("int128") || type.contains("int256")) {
+            return ColumnType.of(DataTypes.DECIMAL, DataTypes.DECIMAL.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("float32")) {
+            return ColumnType.of(DataTypes.FLOAT, DataTypes.FLOAT.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("float64")) {
+            return ColumnType.of(DataTypes.DOUBLE, DataTypes.DOUBLE.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("string")
+                || type.contains("uuid")
+                || type.contains("enum")
+                || type.contains("tuple")) {
+            return ColumnType.of(DataTypes.STRING, DataTypes.STRING.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("boolean")) {
+            return ColumnType.of(DataTypes.BOOLEAN, DataTypes.BOOLEAN.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("datetime")) {
+            return ColumnType.of(DataTypes.TIMESTAMP, DataTypes.TIMESTAMP.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("date")) {
+            return ColumnType.of(DataTypes.DATE, DataTypes.DATE.copyLogicalType(logicalTypeParam));
+        } else if (type.contains("decimal")) {
+            return ColumnType.of(DataTypes.DECIMAL, DataTypes.DECIMAL.copyLogicalType(logicalTypeParam));
+        }
+        return ColumnType.of(DataTypes.STRING, DataTypes.STRING.copyLogicalType(logicalTypeParam));
     }
 
     @Override
     public String convertToDB(ColumnType columnType) {
-        switch (columnType) {
-            case STRING:
-                return "varchar";
-            case BYTE:
-                return "tinyint";
-            case SHORT:
-            case JAVA_LANG_SHORT:
-                return "smallint";
+        if (columnType == null) {
+            return "string";
+        }
+        switch (columnType.getValue()) {
+            case ARRAY:
+                return "Array";
+            case MAP:
+                return "Map";
+            case TINYINT:
+                return "Int8";
+            case SMALLINT:
+                return "Int16";
+            case INT:
+                return "Int32";
+            case BIGINT:
+                return "Int64";
             case DECIMAL:
                 return "decimal";
-            case LONG:
-            case JAVA_LANG_LONG:
-                return "bigint";
             case FLOAT:
-            case JAVA_LANG_FLOAT:
-                return "float";
+                return "float32";
             case DOUBLE:
-            case JAVA_LANG_DOUBLE:
-                return "double";
+                return "float64";
             case BOOLEAN:
-            case JAVA_LANG_BOOLEAN:
                 return "boolean";
             case TIMESTAMP:
                 return "datetime";
             case DATE:
                 return "date";
-            case TIME:
-                return "time";
-            case BYTES:
-                return "binary";
-            case INTEGER:
-            case INT:
-                return "int";
+            case STRING:
             default:
-                return "varchar";
+                return "string";
         }
     }
 }

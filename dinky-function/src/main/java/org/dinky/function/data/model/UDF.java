@@ -22,6 +22,7 @@ package org.dinky.function.data.model;
 import org.apache.flink.table.catalog.FunctionLanguage;
 
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -29,6 +30,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
+@EqualsAndHashCode
 public class UDF {
 
     /** 函数名 */
@@ -39,4 +41,9 @@ public class UDF {
     FunctionLanguage functionLanguage;
     /** udf源代码 */
     String code;
+    /**
+     * en: Compile the artifact path <br />
+     * zh: 编译产物路径
+     */
+    String compilePackagePath;
 }

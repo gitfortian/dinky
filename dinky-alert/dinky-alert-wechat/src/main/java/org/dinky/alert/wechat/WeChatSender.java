@@ -39,13 +39,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import cn.hutool.core.text.StrFormatter;
-import cn.hutool.json.JSONUtil;
 
 /**
  * WeChatSender
@@ -58,9 +54,10 @@ public class WeChatSender {
     private final String weChatTokenUrlReplace;
 
     WeChatSender(Map<String, Object> config) {
-        this.wechatParams = JSONUtil.toBean(JSONUtil.toJsonStr(config), WechatParams.class);
+        this.wechatParams = JsonUtils.toBean(config, WechatParams.class);
         if (wechatParams.isAtAll()) {
-            wechatParams.getAtUsers().add("all");
+            wechatParams.getAtUsers().clear();
+            wechatParams.getAtUsers().add("@all");
         }
         if (wechatParams.getSendType().equals(WeChatType.CHAT.getValue())) {
             requireNonNull(wechatParams.getWebhook(), WeChatConstants.WEB_HOOK + " must not null");
@@ -75,9 +72,9 @@ public class WeChatSender {
     /**
      * build template params
      *
-     * @param title
-     * @param content
-     * @return
+     * @param title  title
+     * @param content content
+     * @return Map<String, Object>
      */
     public Map<String, Object> buildTemplateParams(String title, String content) {
         Map<String, Object> params = new HashMap<>();
@@ -86,11 +83,10 @@ public class WeChatSender {
         if (wechatParams.getSendType().equals(WeChatType.APP.getValue())) {
             params.put(WeChatConstants.ALERT_TEMPLATE_AGENT_ID, wechatParams.getAgentId());
         }
-        List<String> atUsers = wechatParams.getAtUsers().isEmpty()
-                ? new ArrayList<>()
-                : wechatParams.getAtUsers().stream()
-                        .map(u -> StrFormatter.format("<@{}>", u))
-                        .collect(Collectors.toList());
+        List<String> atUsers = new ArrayList<>();
+        if (!wechatParams.getAtUsers().isEmpty()) {
+            atUsers.addAll(wechatParams.getAtUsers());
+        }
         params.put(WeChatConstants.ALERT_TEMPLATE_AT_USERS, atUsers);
         return params;
     }
@@ -125,7 +121,7 @@ public class WeChatSender {
                     resp = EntityUtils.toString(entity, WeChatConstants.CHARSET);
                     EntityUtils.consume(entity);
                 }
-                HashMap<String, Object> map = JsonUtils.parseObject(resp, HashMap.class);
+                HashMap<String, Object> map = JsonUtils.parseDict(resp);
                 if (map != null && null != map.get(WeChatConstants.ACCESS_TOKEN)) {
                     return map.get(WeChatConstants.ACCESS_TOKEN).toString();
                 } else {

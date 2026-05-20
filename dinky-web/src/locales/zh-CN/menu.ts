@@ -19,7 +19,7 @@
 
 export default {
   'menu.welcome': '欢迎',
-  'menu.home': '首页',
+  'menu.home': '工作台',
   'menu.exception.403': '403',
   'menu.exception.404': '404',
   'menu.exception.500': '500',
@@ -58,10 +58,13 @@ export default {
   'menu.registration.cluster.cluster-config': '集群配置',
   'menu.registration.jar': 'Jar',
   'menu.registration.datasource': '数据源',
+  'menu.registration.datasource.list': '数据源列表',
+  'menu.registration.datasource.detail': '数据源详情',
   'menu.registration.alert': '告警',
   'menu.registration.alert.instance': '告警实例',
   'menu.registration.alert.group': '告警组',
   'menu.registration.alert.template': '告警模板',
+  'menu.registration.alert.rule': '告警策略',
   'menu.registration.document': '文档',
   'menu.registration.fragment': '全局变量',
   'menu.registration.gitproject': 'Git 项目(Beta)',
@@ -75,13 +78,17 @@ export default {
   'menu.auth.namespace': '命名空间',
   'menu.auth.tenant': '租户',
   'menu.auth.token': '令牌',
+  'menu.auth.approval': '审核发布',
   'menu.settings': '配置中心',
   'menu.settings.globalsetting': '全局配置',
   'menu.settings.systemlog': '系统日志',
+  'menu.settings.classloaderjars': '类加载器 Jars',
   'menu.settings.process': '进程列表',
   'menu.settings.services': '服务器列表',
-  'menu.settings.alertrulelist': '告警策略',
   'menu.metrics': '监控',
+  'menu.dashboard': '看板',
+  'menu.dashboard.list': '看板',
+  'menu.dashboard.chart': '看板-图表',
   'menu.about': '关于',
   'menu.version': '版本：{version}',
 
@@ -101,7 +108,16 @@ export default {
   'menu.datastudio.process': '进程',
   'menu.datastudio.history': '执行历史',
   'menu.datastudio.table-data': '表数据',
+  'menu.datastudio.service': '服务',
+  'menu.datastudio.quickStart': '快速开始',
+  'menu.datastudio.flinkSqlClient': 'Flink SQL 客户端',
 
   'menu.datastudio.tool.text-comparison': '文本比对',
-  'menu.datastudio.tool.jsonToSql': 'JSON转Flink-SQL'
+  'menu.datastudio.tool.jsonToSql': 'JSON转Flink-SQL',
+  'menu.datastudio.task.baseConfig': '基础配置',
+  'menu.datastudio.task.previewConfig': '预览配置',
+
+  'menu.approval': '审批中心',
+  'menu.approval.taskApproval': '任务审批',
+  'menu.approval.submitApproval': '提交审核'
 };

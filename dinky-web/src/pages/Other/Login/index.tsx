@@ -17,14 +17,13 @@
  *
  */
 
-import Footer from '@/components/Footer';
 import ChooseModal from '@/pages/Other/Login/ChooseModal';
 import { gotoRedirectUrl, initSomeThing, redirectToLogin } from '@/pages/Other/Login/function';
 import LangSwitch from '@/pages/Other/Login/LangSwitch';
 import { chooseTenantSubmit, login, queryDataByParams } from '@/services/BusinessCrud';
 import { API } from '@/services/data';
 import { API_CONSTANTS } from '@/services/endpoints';
-import { UserBaseInfo } from '@/types/AuthCenter/data';
+import { SaTokenInfo, UserBaseInfo } from '@/types/AuthCenter/data.d';
 import { setTenantStorageAndCookie } from '@/utils/function';
 import { useLocalStorage } from '@/utils/hook/useLocalStorage';
 import { l } from '@/utils/intl';
@@ -34,6 +33,7 @@ import { useModel } from '@umijs/max';
 import React, { useEffect, useState } from 'react';
 import HelmetTitle from './HelmetTitle';
 import LoginForm from './LoginForm';
+import { TOKEN_KEY } from '@/services/constants';
 
 const Login: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
@@ -41,9 +41,7 @@ const Login: React.FC = () => {
   const [tenantVisible, handleTenantVisible] = useState<boolean>(false);
   const [tenant, setTenant] = useState<UserBaseInfo.Tenant[]>([]);
 
-  const [localStorageOfToken, setLocalStorageOfToken] = useLocalStorage('token', '');
-
-  const { reconnectSse } = useModel('Sse', (model: any) => ({ reconnectSse: model.reconnectSse }));
+  const [localStorageOfToken, setLocalStorageOfToken] = useLocalStorage(TOKEN_KEY, '');
 
   const containerClassName = useEmotionCss(() => {
     return {
@@ -63,11 +61,16 @@ const Login: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    initSomeThing();
+  }, []);
+
   /**
    * When the token is expired, redirect to login
    */
   useEffect(() => {
-    const expirationTime = JSON.parse(JSON.stringify(localStorageOfToken)).tokenTimeout ?? 0; // GET TOKEN TIMEOUT
+    const expirationTime =
+      (JSON.parse(JSON.stringify(localStorageOfToken)) as SaTokenInfo)?.tokenTimeout ?? 0; // GET TOKEN TIMEOUT
     let timeRemaining = 0;
     let timer: NodeJS.Timeout;
     if (expirationTime > 0) {
@@ -75,7 +78,7 @@ const Login: React.FC = () => {
       const currentTime = Date.now();
       timeRemaining = expirationTime - currentTime;
       //  use setInterval to set a timer
-      timer = setInterval(() => redirectToLogin(), timeRemaining);
+      timer = setInterval(() => redirectToLogin(l('login.token.error')), timeRemaining);
     }
     return () => {
       clearTimeout(timer);
@@ -98,7 +101,6 @@ const Login: React.FC = () => {
       /**
        * Redirect to home page && reconnect Global Sse
        */
-      reconnectSse();
       gotoRedirectUrl();
     } else {
       ErrorMessage(l('login.chooseTenantFailed'));
@@ -129,6 +131,7 @@ const Login: React.FC = () => {
     const chooseTenantResult: API.Result = await chooseTenantSubmit({
       tenantId
     });
+
     await handleChooseTenant(chooseTenantResult);
   };
 
@@ -136,11 +139,17 @@ const Login: React.FC = () => {
     try {
       // login
       const result = await login({ ...values });
+
       if (result.code === 0) {
         // if login success then get token info and set it to local storage
-        await queryDataByParams(API_CONSTANTS.TOKEN_INFO).then((res) =>
-          setLocalStorageOfToken(JSON.stringify(res))
-        );
+        await queryDataByParams<SaTokenInfo>(API_CONSTANTS.TOKEN_INFO).then((res) => {
+          if (res) {
+            setLocalStorageOfToken(JSON.stringify(res));
+          } else {
+            // 如果没有获取到token信息，直接跳转到登录页
+            redirectToLogin(l('login.token.error'));
+          }
+        });
       }
       setInitialState((s) => ({ ...s, currentUser: result.data }));
       await SuccessMessageAsync(l('login.result', '', { msg: result.msg, time: result.time }));
@@ -175,14 +184,12 @@ const Login: React.FC = () => {
     await handleChooseTenant(result);
     handleTenantVisible(false);
   };
-  // 进入登录页初始化一些东西
-  initSomeThing();
+
   return (
     <div className={containerClassName}>
       <HelmetTitle />
       <LangSwitch />
       <LoginForm onSubmit={handleSubmitLogin} />
-      <Footer />
       <ChooseModal
         tenantVisible={tenantVisible}
         handleTenantVisible={() => handleTenantVisible(false)}

@@ -24,15 +24,19 @@ import org.dinky.data.annotations.Log;
 import org.dinky.data.dto.MetricsLayoutDTO;
 import org.dinky.data.enums.BusinessType;
 import org.dinky.data.enums.MetricsType;
+import org.dinky.data.enums.Status;
 import org.dinky.data.model.Metrics;
 import org.dinky.data.result.Result;
+import org.dinky.data.vo.CascaderVO;
 import org.dinky.data.vo.MetricsVO;
 import org.dinky.service.JobInstanceService;
 import org.dinky.service.MonitorService;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -42,8 +46,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.lang.Dict;
 import cn.hutool.core.lang.Opt;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
@@ -57,6 +63,7 @@ import lombok.extern.slf4j.Slf4j;
 @Api(tags = "Monitor Controller")
 @RequestMapping("/api/monitor")
 @RequiredArgsConstructor
+@SaCheckLogin
 public class MonitorController {
 
     private final MonitorService monitorService;
@@ -90,6 +97,18 @@ public class MonitorController {
                 Arrays.asList(flinkJobIds.split(","))));
     }
 
+    @GetMapping("/getFlinkDataByDashboard")
+    @ApiOperation("Get Flink Data")
+    @ApiImplicitParams({
+        @ApiImplicitParam(name = "startTime", value = "Start Time", required = true, dataType = "Long"),
+        @ApiImplicitParam(name = "endTime", value = "End Time", dataType = "Long"),
+        @ApiImplicitParam(name = "flinkMetricsIdList", value = "Task Ids", required = true, dataType = "String")
+    })
+    public Result<Map<Integer, List<Dict>>> getFlinkDataByDashboard(
+            @RequestParam Long startTime, Long endTime, String flinkMetricsIdList) {
+        return Result.succeed(monitorService.getFlinkDataByDashboard(startTime, endTime, flinkMetricsIdList));
+    }
+
     @PutMapping("/saveFlinkMetrics/{layout}")
     @ApiOperation("Save Flink Metrics")
     @Log(title = "Save Flink Metrics", businessType = BusinessType.INSERT)
@@ -115,6 +134,12 @@ public class MonitorController {
         return Result.succeed(monitorService.getMetricsLayout());
     }
 
+    @GetMapping("/getMetricsLayoutByCascader")
+    @ApiOperation("Get Metrics Layout to Display By Cascader")
+    public Result<List<CascaderVO>> getMetricsLayoutByCascader() {
+        return Result.succeed(monitorService.getMetricsLayoutByCascader());
+    }
+
     @GetMapping("/getMetricsLayoutByName")
     @ApiOperation("Get Metrics Layout by task to Display")
     @ApiImplicitParam(name = "layoutName", value = "Layout Name", required = true, dataType = "String")
@@ -126,5 +151,15 @@ public class MonitorController {
     @ApiOperation("Get Jvm Data Display")
     public SseEmitter getJvmInfo() {
         return monitorService.sendJvmInfo();
+    }
+
+    @DeleteMapping("/deleteMetricsLayout")
+    @ApiOperation("Delete Metrics Layout")
+    @ApiImplicitParam(name = "taskId", value = "taskId", required = true, dataType = "Integer")
+    public Result<Void> deleteMetricsLayout(@RequestParam("id") Integer taskId) {
+        if (monitorService.deleteMetricsLayout(taskId)) {
+            return Result.succeed(Status.DELETE_SUCCESS);
+        }
+        return Result.failed(Status.DELETE_FAILED);
     }
 }

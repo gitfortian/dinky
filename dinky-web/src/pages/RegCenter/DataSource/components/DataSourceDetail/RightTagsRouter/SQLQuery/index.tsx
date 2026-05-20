@@ -31,11 +31,13 @@ import React, { useEffect, useState } from 'react';
 // props
 type SQLQueryProps = {
   queryParams: QueryParams;
+  hidlenFilter?: boolean;
 };
 
 const SQLQuery: React.FC<SQLQueryProps> = (props) => {
   const {
-    queryParams: { id: dbId, schemaName, tableName }
+    queryParams: { id: dbId, schemaName, tableName },
+    hidlenFilter = false
   } = props;
 
   // state
@@ -43,7 +45,7 @@ const SQLQuery: React.FC<SQLQueryProps> = (props) => {
   const [tableData, setTableData] = useState({ columns: [{}], rowData: [{}] });
   const [autoCompleteColumns, setAutoCompleteColumns] = useState<DefaultOptionType[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [errMsg, setErrMsg] = useState<{ isErr: boolean; msg: string }>({
+  const [responseMsg, setResponseMsg] = useState<{ isErr: boolean; msg: string }>({
     isErr: false,
     msg: ''
   });
@@ -61,19 +63,23 @@ const SQLQuery: React.FC<SQLQueryProps> = (props) => {
         option: {
           where: values.where,
           order: values.order,
-          limitStart: '0',
-          limitEnd: '500'
+          limitStart: 0,
+          limitEnd: 1000
         }
       }
     );
     const {
       code,
       data: { columns, rowData }
-    } = result; // 获取到的数据
-    if (code === 1) {
-      setErrMsg({ isErr: true, msg: result.data.error });
+    } = result ?? {
+      code: -1,
+      data: { columns: [], rowData: [] }
+    }; // 获取到的数据
+
+    if (code && code === 1) {
+      setResponseMsg({ isErr: true, msg: result.data.error });
     } else {
-      setErrMsg({ isErr: false, msg: '' });
+      setResponseMsg({ isErr: false, msg: '' });
     }
     // render columns list
     const tableColumns = columns?.map((item: string | number) => ({
@@ -94,7 +100,7 @@ const SQLQuery: React.FC<SQLQueryProps> = (props) => {
    */
   const clearState = () => {
     setTableData({ columns: [], rowData: [] });
-    setErrMsg({ isErr: false, msg: '' });
+    setResponseMsg({ isErr: false, msg: '' });
     setLoading(false);
     form.resetFields();
   };
@@ -114,8 +120,8 @@ const SQLQuery: React.FC<SQLQueryProps> = (props) => {
   const renderAlert = () => {
     return (
       <>
-        {errMsg.isErr ? (
-          <Alert message='Error' description={errMsg.msg} type='error' showIcon />
+        {responseMsg.isErr ? (
+          <Alert message='Error' description={responseMsg.msg} type='error' showIcon />
         ) : (
           <></>
         )}
@@ -146,6 +152,7 @@ const SQLQuery: React.FC<SQLQueryProps> = (props) => {
           loading={loading}
           {...PROTABLE_OPTIONS_PUBLIC}
           size={'small'}
+          scroll={{ x: 'max-content' }}
           search={false}
           pagination={{
             defaultPageSize: 15,
@@ -154,7 +161,7 @@ const SQLQuery: React.FC<SQLQueryProps> = (props) => {
           dateFormatter='string'
           columns={tableData.columns}
           dataSource={tableData.rowData}
-          toolBarRender={renderToolBar}
+          toolBarRender={!hidlenFilter && renderToolBar}
           tableAlertRender={renderAlert}
           options={{
             density: false,

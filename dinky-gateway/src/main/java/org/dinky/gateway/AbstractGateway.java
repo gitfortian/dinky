@@ -21,10 +21,11 @@ package org.dinky.gateway;
 
 import org.dinky.assertion.Asserts;
 import org.dinky.context.FlinkUdfPathContextHolder;
+import org.dinky.data.enums.GatewayType;
 import org.dinky.data.enums.JobStatus;
+import org.dinky.data.model.CustomConfig;
 import org.dinky.gateway.config.GatewayConfig;
 import org.dinky.gateway.enums.ActionType;
-import org.dinky.gateway.enums.GatewayType;
 import org.dinky.gateway.exception.GatewayException;
 import org.dinky.gateway.exception.NotSupportGetStatusException;
 import org.dinky.gateway.model.JobInfo;
@@ -88,11 +89,24 @@ public abstract class AbstractGateway implements Gateway {
 
     protected abstract void init();
 
+    protected boolean removeConfigParas(ConfigOption<String> configOption) {
+        return this.configuration.removeConfig(configOption);
+    }
+
     protected void addConfigParas(Map<String, String> configMap) {
         if (Asserts.isNotNull(configMap)) {
             configMap.entrySet().stream()
                     .filter(entry -> Asserts.isAllNotNullString(entry.getKey(), entry.getValue()))
                     .forEach(entry -> this.configuration.setString(entry.getKey(), entry.getValue()));
+        }
+    }
+
+    protected void addConfigParas(List<CustomConfig> flinkConfigList) {
+        if (Asserts.isNotNullCollection(flinkConfigList)) {
+            flinkConfigList.stream()
+                    .filter(customConfig -> Asserts.isAllNotNullString(customConfig.getName(), customConfig.getValue()))
+                    .forEach(customConfig ->
+                            this.configuration.setString(customConfig.getName(), customConfig.getValue()));
         }
     }
 
@@ -104,10 +118,12 @@ public abstract class AbstractGateway implements Gateway {
         }
     }
 
+    @Override
     public SavePointResult savepointCluster() {
         return savepointCluster(null);
     }
 
+    @Override
     public SavePointResult savepointJob() {
         return savepointJob(null);
     }
@@ -189,8 +205,8 @@ public abstract class AbstractGateway implements Gateway {
 
     protected void resetCheckpointInApplicationMode(String jobName) {
         String uuid = UUID.randomUUID().toString();
-        String checkpointsDirectory = configuration.getString(CheckpointingOptions.CHECKPOINTS_DIRECTORY);
-        String savepointDirectory = configuration.getString(CheckpointingOptions.SAVEPOINT_DIRECTORY);
+        String checkpointsDirectory = configuration.get(CheckpointingOptions.CHECKPOINTS_DIRECTORY);
+        String savepointDirectory = configuration.get(CheckpointingOptions.SAVEPOINT_DIRECTORY);
 
         Optional.ofNullable(checkpointsDirectory)
                 .ifPresent(dir -> configuration.set(
@@ -235,5 +251,10 @@ public abstract class AbstractGateway implements Gateway {
     @Override
     public boolean onJobFinishCallback(String status) {
         return true;
+    }
+
+    @Override
+    public String getLatestJobManageHost(String appId, String oldJobManagerHost) {
+        throw new NotSupportGetStatusException("Does not support obtaining the latest JobManager host address");
     }
 }

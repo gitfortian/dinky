@@ -31,6 +31,7 @@ import {
 import { handleRemoveById, queryDataByParams, updateDataByParam } from '@/services/BusinessCrud';
 import { PROTABLE_OPTIONS_PUBLIC, PRO_LIST_CARD_OPTIONS } from '@/services/constants';
 import { API_CONSTANTS } from '@/services/endpoints';
+import { PermissionConstants } from '@/types/Public/constants';
 import { Alert } from '@/types/RegCenter/data.d';
 import { InitAlertInstance, InitAlertInstanceState } from '@/types/RegCenter/init.d';
 import { AlertInstanceState } from '@/types/RegCenter/state.d';
@@ -39,8 +40,9 @@ import { ProList } from '@ant-design/pro-components';
 import { ActionType } from '@ant-design/pro-table';
 import { Descriptions, Input, Modal, Space, Tag, Tooltip } from 'antd';
 import DescriptionsItem from 'antd/es/descriptions/Item';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import AlertTypeChoose from '../AlertTypeChoose';
+import { useAsyncEffect } from 'ahooks';
 
 const AlertInstanceList: React.FC = () => {
   /**
@@ -64,11 +66,11 @@ const AlertInstanceList: React.FC = () => {
     );
   };
 
-  useEffect(() => {
-    queryAlertInstanceList();
+  useAsyncEffect(async () => {
+    await queryAlertInstanceList();
   }, []);
 
-  const executeAndCallbackRefresh = async (callback: () => void) => {
+  const executeAndCallbackRefresh = async (callback: () => Promise<any>) => {
     setAlertInstanceState((prevState) => ({ ...prevState, loading: true }));
     await callback();
     setAlertInstanceState((prevState) => ({ ...prevState, loading: false }));
@@ -140,10 +142,16 @@ const AlertInstanceList: React.FC = () => {
    */
   const renderAlertInstanceActionButton = (item: Alert.AlertInstance) => {
     return [
-      <Authorized key={`${item.id}_auth_edit`} path='/registration/alert/instance/edit'>
+      <Authorized
+        key={`${item.id}_auth_edit`}
+        path={PermissionConstants.REGISTRATION_ALERT_INSTANCE_EDIT}
+      >
         <EditBtn key={`${item.id}_edit`} onClick={() => editClick(item)} />
       </Authorized>,
-      <Authorized key={`${item.id}_auth_delete`} path='/registration/alert/instance/delete'>
+      <Authorized
+        key={`${item.id}_auth_delete`}
+        path={PermissionConstants.REGISTRATION_ALERT_INSTANCE_DELETE}
+      >
         <NormalDeleteBtn key={`${item.id}_delete`} onClick={() => handleDeleteSubmit(item.id)} />
       </Authorized>
     ];
@@ -168,7 +176,7 @@ const AlertInstanceList: React.FC = () => {
         </Tag>
         <EnableSwitchBtn
           key={`${item.id}_enable`}
-          disabled={!HasAuthority('/registration/alert/instance/edit')}
+          disabled={!HasAuthority(PermissionConstants.REGISTRATION_ALERT_INSTANCE_EDIT)}
           record={item}
           onChange={() => handleEnable(item)}
         />
@@ -200,7 +208,7 @@ const AlertInstanceList: React.FC = () => {
         placeholder={l('rc.ai.search')}
         onSearch={(value) => queryAlertInstanceList(value)}
       />,
-      <Authorized key='create' path='/registration/alert/instance/add'>
+      <Authorized key='create' path={PermissionConstants.REGISTRATION_ALERT_INSTANCE_ADD}>
         <CreateBtn
           key={'CreateAlertInstanceBtn'}
           onClick={() => setAlertInstanceState((prevState) => ({ ...prevState, addedOpen: true }))}
@@ -255,6 +263,7 @@ const AlertInstanceList: React.FC = () => {
         headerTitle={l('rc.ai.management')}
         toolBarRender={renderToolBar()}
         dataSource={renderDataSource}
+        grid={{ xs: 1, sm: 2, md: 3, lg: 4, xl: 5, xxl: 5 }}
       />
 
       {/* added */}

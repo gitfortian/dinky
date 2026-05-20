@@ -19,18 +19,27 @@
 
 package org.dinky.data.model;
 
+import org.dinky.assertion.Asserts;
+import org.dinky.context.EngineContextHolder;
+import org.dinky.data.constant.CommonConstant;
+import org.dinky.data.constant.DirConstant;
 import org.dinky.data.enums.Status;
+import org.dinky.data.enums.TaskOwnerAlertStrategyEnum;
+import org.dinky.data.enums.TaskOwnerLockStrategyEnum;
 import org.dinky.data.properties.OssProperties;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import cn.hutool.core.convert.Convert;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.lang.Opt;
 import cn.hutool.core.util.DesensitizedUtil;
 import cn.hutool.core.util.ReflectUtil;
@@ -61,18 +70,34 @@ public class SystemConfiguration {
                     ReflectUtil.getFields(SystemConfiguration.class, f -> f.getType() == Configuration.class))
             .map(f -> (Configuration<?>) ReflectUtil.getFieldValue(systemConfiguration, f))
             .collect(Collectors.toList());
+
+    private final Configuration<Boolean> isFirstSystemIn =
+            key(Status.SYS_GLOBAL_IS_FIRST).booleanType().defaultValue(true).hidden(true);
+
     private final Configuration<Boolean> useRestAPI = key(Status.SYS_FLINK_SETTINGS_USERESTAPI)
             .booleanType()
             .defaultValue(true)
             .note(Status.SYS_FLINK_SETTINGS_USERESTAPI_NOTE);
-    private final Configuration<String> sqlSeparator = key(Status.SYS_FLINK_SETTINGS_SQLSEPARATOR)
-            .stringType()
-            .defaultValue(";\\n")
-            .note(Status.SYS_FLINK_SETTINGS_SQLSEPARATOR_NOTE);
+
     private final Configuration<Integer> jobIdWait = key(Status.SYS_FLINK_SETTINGS_JOBIDWAIT)
             .intType()
             .defaultValue(30)
             .note(Status.SYS_FLINK_SETTINGS_JOBIDWAIT_NOTE);
+
+    private final Configuration<Boolean> useFlinkHistoryServer = key(Status.SYS_FLINK_SETTINGS_USE_FLINK_HISTORY_SERVER)
+            .booleanType()
+            .defaultValue(true)
+            .note(Status.SYS_FLINK_SETTINGS_USE_FLINK_HISTORY_SERVER_NOTE);
+    private final Configuration<Integer> flinkHistoryServerPort =
+            key(Status.SYS_FLINK_SETTINGS_FLINK_HISTORY_SERVER_PORT)
+                    .intType()
+                    .defaultValue(8082)
+                    .note(Status.SYS_FLINK_SETTINGS_FLINK_HISTORY_SERVER_PORT_NOTE);
+    private final Configuration<Integer> flinkHistoryServerArchiveRefreshInterval =
+            key(Status.SYS_FLINK_SETTINGS_FLINK_HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL)
+                    .intType()
+                    .defaultValue(5000)
+                    .note(Status.SYS_FLINK_SETTINGS_FLINK_HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL_NOTE);
 
     private final Configuration<String> mavenSettings = key(Status.SYS_MAVEN_SETTINGS_SETTINGSFILEPATH)
             .stringType()
@@ -99,11 +124,25 @@ public class SystemConfiguration {
             .stringType()
             .defaultValue("python3")
             .note(Status.SYS_ENV_SETTINGS_PYTHONHOME_NOTE);
-
     private final Configuration<String> dinkyAddr = key(Status.SYS_ENV_SETTINGS_DINKYADDR)
             .stringType()
             .defaultValue(System.getProperty("dinkyAddr"))
             .note(Status.SYS_ENV_SETTINGS_DINKYADDR_NOTE);
+    private final Configuration<String> dinkyToken = key(Status.SYS_ENV_SETTINGS_DINKYTOKEN)
+            .stringType()
+            .defaultValue("efda1551-7958-4e0f-80a8-dfd107df3e38")
+            .note(Status.SYS_ENV_SETTINGS_DINKYTOKEN_NOTE);
+
+    private final Configuration<Integer> jobReSendDiffSecond = key(Status.SYS_ENV_SETTINGS_JOB_RESEND_DIFF_SECOND)
+            .intType()
+            .defaultValue(60)
+            .note(Status.SYS_ENV_SETTINGS_JOB_RESEND_DIFF_SECOND_NOTE);
+
+    private final Configuration<Integer> diffMinuteMaxSendCount =
+            key(Status.SYS_ENV_SETTINGS_DIFF_MINUTE_MAX_SEND_COUNT)
+                    .intType()
+                    .defaultValue(2)
+                    .note(Status.SYS_ENV_SETTINGS_DIFF_MINUTE_MAX_SEND_COUNT_NOTE);
 
     private final Configuration<Integer> jobMaxRetainCount = key(Status.SYS_ENV_SETTINGS_MAX_RETAIN_COUNT)
             .intType()
@@ -114,6 +153,24 @@ public class SystemConfiguration {
             .intType()
             .defaultValue(30)
             .note(Status.SYS_ENV_SETTINGS_MAX_RETAIN_DAYS_NOTE);
+
+    // the default value is the same as the default value of the expressionVariable
+    private final Configuration<String> expressionVariable = key(Status.SYS_ENV_SETTINGS_EXPRESSION_VARIABLE)
+            .stringType()
+            .defaultValue(CommonConstant.DEFAULT_EXPRESSION_VARIABLES)
+            .note(Status.SYS_ENV_SETTINGS_EXPRESSION_VARIABLE_NOTE);
+
+    private final Configuration<TaskOwnerLockStrategyEnum> taskOwnerLockStrategy =
+            key(Status.SYS_ENV_SETTINGS_TASK_OWNER_LOCK_STRATEGY)
+                    .enumType(TaskOwnerLockStrategyEnum.class)
+                    .defaultValue(TaskOwnerLockStrategyEnum.ALL)
+                    .note(Status.SYS_ENV_SETTINGS_TASK_OWNER_LOCK_STRATEGY_NOTE);
+
+    private final Configuration<TaskOwnerAlertStrategyEnum> taskOwnerAlertStrategy =
+            key(Status.SYS_ENV_SETTINGS_TASK_OWNER_ALERT_STRATEGY)
+                    .enumType(TaskOwnerAlertStrategyEnum.class)
+                    .defaultValue(TaskOwnerAlertStrategyEnum.NONE)
+                    .note(Status.SYS_ENV_SETTINGS_TASK_OWNER_ALERT_STRATEGY_NOTE);
 
     private final Configuration<Boolean> dolphinschedulerEnable = key(Status.SYS_DOLPHINSCHEDULER_SETTINGS_ENABLE)
             .booleanType()
@@ -157,9 +214,19 @@ public class SystemConfiguration {
             .defaultValue("")
             .note(Status.SYS_LDAP_SETTINGS_BASEDN_NOTE);
 
+    private final Configuration<String> ldapCastUsername = key(Status.SYS_LDAP_SETTINGS_CASTUSERNAME)
+            .stringType()
+            .defaultValue("cn")
+            .note(Status.SYS_LDAP_SETTINGS_CASTUSERNAME_NOTE);
+
+    private final Configuration<String> ldapCastNickname = key(Status.SYS_LDAP_SETTINGS_CASTNICKNAME)
+            .stringType()
+            .defaultValue("sn")
+            .note(Status.SYS_LDAP_SETTINGS_CASTNICKNAME_NOTE);
+
     private final Configuration<String> ldapFilter = key(Status.SYS_LDAP_SETTINGS_FILTER)
             .stringType()
-            .defaultValue("")
+            .defaultValue("(&(objectClass=inetOrgPerson))")
             .note(Status.SYS_LDAP_SETTINGS_FILTER_NOTE);
 
     private final Configuration<Boolean> ldapAutoload = key(Status.SYS_LDAP_SETTINGS_AUTOLOAD)
@@ -171,16 +238,6 @@ public class SystemConfiguration {
             .stringType()
             .defaultValue("DefaultTenant")
             .note(Status.SYS_LDAP_SETTINGS_DEFAULTTEANT_NOTE);
-
-    private final Configuration<String> ldapCastUsername = key(Status.SYS_LDAP_SETTINGS_CASTUSERNAME)
-            .stringType()
-            .defaultValue("cn")
-            .note(Status.SYS_LDAP_SETTINGS_CASTUSERNAME_NOTE);
-
-    private final Configuration<String> ldapCastNickname = key(Status.SYS_LDAP_SETTINGS_CASTNICKNAME)
-            .stringType()
-            .defaultValue("sn")
-            .note(Status.SYS_LDAP_SETTINGS_CASTNICKNAME_NOTE);
 
     private final Configuration<Boolean> ldapEnable = key(Status.SYS_LDAP_SETTINGS_ENABLE)
             .booleanType()
@@ -210,7 +267,13 @@ public class SystemConfiguration {
     private final Configuration<Boolean> resourcesEnable = key(Status.SYS_RESOURCE_SETTINGS_ENABLE)
             .booleanType()
             .defaultValue(true)
-            .note(Status.SYS_RESOURCE_SETTINGS_ENABLE_NOTE);
+            .note(Status.SYS_RESOURCE_SETTINGS_ENABLE_NOTE)
+            .hidden(true);
+
+    private final Configuration<Boolean> physicalDeletion = key(Status.SYS_RESOURCE_SETTINGS_PHYSICAL_DELETION)
+            .booleanType()
+            .defaultValue(false)
+            .note(Status.SYS_RESOURCE_SETTINGS_PHYSICAL_DELETION_NOTE);
 
     private final Configuration<ResourcesModelEnum> resourcesModel = key(Status.SYS_RESOURCE_SETTINGS_MODEL)
             .enumType(ResourcesModelEnum.class)
@@ -253,10 +316,35 @@ public class SystemConfiguration {
             .stringType()
             .defaultValue("file:///")
             .note(Status.SYS_RESOURCE_SETTINGS_HDFS_FS_DEFAULTFS_NOTE);
+    private final Configuration<String> resourcesHdfsCoreSite = key(Status.SYS_RESOURCE_SETTINGS_HDFS_CORE_SITE)
+            .stringType()
+            .defaultValue("")
+            .note(Status.SYS_RESOURCE_SETTINGS_HDFS_CORE_SITE_NOTE);
+    private final Configuration<String> resourcesHdfsHdfsSite = key(Status.SYS_RESOURCE_SETTINGS_HDFS_HDFS_SITE)
+            .stringType()
+            .defaultValue("")
+            .note(Status.SYS_RESOURCE_SETTINGS_HDFS_HDFS_SITE_NOTE);
     private final Configuration<Boolean> resourcesPathStyleAccess = key(Status.SYS_RESOURCE_SETTINGS_PATH_STYLE_ACCESS)
             .booleanType()
             .defaultValue(true)
             .note(Status.SYS_RESOURCE_SETTINGS_PATH_STYLE_ACCESS_NOTE);
+    private final Configuration<Boolean> enableTaskSubmitReview =
+            key(Status.SYS_APPROVAL_SETTINGS_ENABLE_TASK_SUBMIT_REVIEW)
+                    .booleanType()
+                    .defaultValue(false)
+                    .note(Status.SYS_APPROVAL_SETTINGS_ENABLE_TASK_SUBMIT_REVIEW_NOTE);
+    private final Configuration<Boolean> enforceCrossReview = key(Status.SYS_APPROVAL_SETTINGS_ENFORCE_CROSS_REVIEW)
+            .booleanType()
+            .defaultValue(true)
+            .note(Status.SYS_APPROVAL_SETTINGS_ENFORCE_CROSS_REVIEW_NOTE);
+    private final Configuration<String> taskReviewerRoles = key(Status.SYS_APPROVAL_SETTINGS_TASK_REVIEWER_ROLES)
+            .stringType()
+            .defaultValue("SuperAdmin")
+            .note(Status.SYS_APPROVAL_SETTINGS_TASK_REVIEWER_ROLES_NOTE);
+    private final Configuration<Boolean> isOwnerReference = key(Status.SYS_ENV_SETTINGS_IS_OWNER_REFERENCE)
+            .booleanType()
+            .defaultValue(true)
+            .note(Status.SYS_ENV_SETTINGS_IS_OWNER_REFERENCE_NOTE);
 
     /**
      * Initialize after spring bean startup
@@ -298,6 +386,14 @@ public class SystemConfiguration {
         CONFIGURATION_LIST.stream().peek(Configuration::runParameterCheck).forEach(Configuration::runChangeEvent);
     }
 
+    public void initExpressionVariableList(Map<String, String> configMap) {
+        CONFIGURATION_LIST.forEach(item -> {
+            if (item.getKey().equals(expressionVariable.getKey())) {
+                EngineContextHolder.loadExpressionVariableClass(configMap.get(item.getKey()));
+            }
+        });
+    }
+
     public Map<String, List<Configuration<?>>> getAllConfiguration() {
         Map<String, List<Configuration<?>>> data = new TreeMap<>();
         for (Configuration<?> item : CONFIGURATION_LIST) {
@@ -314,14 +410,10 @@ public class SystemConfiguration {
     }
 
     public boolean isUseRestAPI() {
-        return useRestAPI.getValue();
+        return Asserts.isNull(useRestAPI.getValue()) ? useRestAPI.getDefaultValue() : useRestAPI.getValue();
     }
 
-    public String getSqlSeparator() {
-        return sqlSeparator.getValue();
-    }
-
-    public int getJobIdWait() {
+    public int GetJobIdWaitValue() {
         return jobIdWait.getValue();
     }
 
@@ -356,5 +448,47 @@ public class SystemConfiguration {
                 .region(resourcesOssRegion.getValue())
                 .pathStyleAccess(resourcesPathStyleAccess.getValue())
                 .build();
+    }
+
+    public TaskOwnerLockStrategyEnum GetTaskOwnerLockStrategyValue() {
+        return taskOwnerLockStrategy.getValue();
+    }
+
+    public static final String FLINK_JOB_ARCHIVE = "rs:/tmp/flink-job-archive";
+
+    public Map<String, String> getFlinkHistoryServerConfiguration() {
+        Map<String, String> config = new HashMap<>();
+        if (useFlinkHistoryServer.getValue()) {
+            config.put(
+                    "historyserver.web.port", flinkHistoryServerPort.getValue().toString());
+            config.put(
+                    "historyserver.archive.fs.refresh-interval",
+                    flinkHistoryServerArchiveRefreshInterval.getValue().toString());
+            config.put(
+                    "historyserver.web.tmpdir",
+                    FileUtil.file(DirConstant.getTempRootDir(), "flink-job-archive")
+                            .getAbsolutePath());
+            config.put("historyserver.archive.fs.dir", FLINK_JOB_ARCHIVE);
+            config.put("historyserver.archive.clean-expired-jobs", "true");
+        }
+        return config;
+    }
+
+    public boolean enableTaskSubmitApprove() {
+        return enableTaskSubmitReview.getValue();
+    }
+
+    public boolean enforceCrossView() {
+        return enforceCrossReview.getValue();
+    }
+
+    public Set<String> getReviewerRoles() {
+        return Arrays.stream(taskReviewerRoles.getValue().split(","))
+                .map(String::trim)
+                .collect(Collectors.toSet());
+    }
+
+    public Boolean isOwnerReference() {
+        return isOwnerReference.getValue();
     }
 }

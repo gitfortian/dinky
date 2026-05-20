@@ -28,13 +28,9 @@ import { SuccessMessage } from '@/utils/messages';
 import { ApiFilled } from '@ant-design/icons';
 import { Space, Tag } from 'antd';
 import React from 'react';
+import { GeneralComponentConfigProps } from '@/pages/SettingCenter/GlobalSetting/data.d';
 
-interface LdapConfigProps {
-  data: BaseConfigProperties[];
-  onSave: (data: BaseConfigProperties) => void;
-}
-
-export const LdapConfig = ({ data, onSave }: LdapConfigProps) => {
+export const LdapConfig = ({ data, onSave, auth }: GeneralComponentConfigProps) => {
   const [loading, setLoading] = React.useState(false);
 
   const testConnection = async () => {
@@ -46,12 +42,10 @@ export const LdapConfig = ({ data, onSave }: LdapConfigProps) => {
     setLoading(false);
   };
 
-  const onSaveHandler = (data: BaseConfigProperties) => {
+  const onSaveHandler = async (data: BaseConfigProperties) => {
     setLoading(true);
-    onSave(data);
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    await onSave(data);
+    setLoading(false);
   };
 
   /**
@@ -71,10 +65,10 @@ export const LdapConfig = ({ data, onSave }: LdapConfigProps) => {
 
   return (
     <>
-      {/*tooltip={l('sys.setting.ldap.tooltip')}*/}
       <GeneralConfig
         loading={loading}
         onSave={onSaveHandler}
+        auth={auth}
         tag={
           <>
             <Tag color={'default'}>{l('sys.setting.tag.integration')}</Tag>

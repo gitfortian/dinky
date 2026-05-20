@@ -19,14 +19,12 @@
 
 package org.dinky.gateway.config;
 
-import org.dinky.assertion.Asserts;
-import org.dinky.gateway.enums.GatewayType;
+import org.dinky.data.enums.GatewayType;
 import org.dinky.gateway.model.FlinkClusterConfig;
-
-import java.util.Map;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.lang.Assert;
+import cn.hutool.core.util.StrUtil;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Getter;
@@ -48,6 +46,13 @@ public class GatewayConfig {
             example = "123",
             notes = "ID of the task")
     private Integer taskId;
+
+    @ApiModelProperty(
+            value = "SQL statement to be executed",
+            dataType = "String",
+            example = "SELECT * FROM table",
+            notes = "SQL statement")
+    private String sql;
 
     @ApiModelProperty(
             value = "Paths to the JAR files",
@@ -88,13 +93,11 @@ public class GatewayConfig {
         Assert.notNull(config);
         GatewayConfig gatewayConfig = new GatewayConfig();
         BeanUtil.copyProperties(config, gatewayConfig);
-        for (Map<String, String> item : gatewayConfig.getFlinkConfig().getFlinkConfigList()) {
-            if (Asserts.isNotNull(item)) {
-                Assert.notNull(item.get("name"), "Custer config has null item");
-                Assert.notNull(item.get("value"), "Custer config has null item");
-                gatewayConfig.getFlinkConfig().getConfiguration().put(item.get("name"), item.get("value"));
-            }
-        }
+        gatewayConfig
+                .getFlinkConfig()
+                .getConfiguration()
+                .entrySet()
+                .removeIf(entry -> StrUtil.isBlank(entry.getValue()));
         return gatewayConfig;
     }
 }

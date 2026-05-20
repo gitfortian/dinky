@@ -26,6 +26,10 @@ import org.dinky.constant.FlinkParamConstant;
 import org.dinky.data.model.FlinkCDCConfig;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.cdc.connectors.mysql.source.MySqlSource;
+import org.apache.flink.cdc.connectors.mysql.source.MySqlSourceBuilder;
+import org.apache.flink.cdc.connectors.mysql.table.StartupOptions;
+import org.apache.flink.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -33,11 +37,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
-import com.ververica.cdc.connectors.mysql.source.MySqlSource;
-import com.ververica.cdc.connectors.mysql.source.MySqlSourceBuilder;
-import com.ververica.cdc.connectors.mysql.table.StartupOptions;
-import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 
 public class MysqlCDCBuilder extends AbstractCDCBuilder {
 
@@ -75,11 +74,19 @@ public class MysqlCDCBuilder extends AbstractCDCBuilder {
         String distributionFactorUpper = source.get("chunk-key.even-distribution.factor.lower-bound");
         String scanNewlyAddedTableEnabled = source.get("scan.newly-added-table.enabled");
         String schemaChanges = source.get("schema.changes");
+        String scanStartupSpecificOffsetFile = source.get("scan.startup.specific-offset.file");
+        String scanStartupSpecificOffsetPos = source.get("scan.startup.specific-offset.pos");
+        String scanStartupSpecificOffsetGtidSet = source.get("scan.startup.specific-offset.gtid-set");
+        String scanStartupTimestampMillis = source.get("scan.startup.timestamp-millis");
 
         // 为部分转换添加默认值
         Properties debeziumProperties = new Properties();
         debeziumProperties.setProperty("bigint.unsigned.handling.mode", "long");
         debeziumProperties.setProperty("decimal.handling.mode", "string");
+        if (Asserts.isNotNullString(serverTimeZone)
+                && Asserts.isNotNullString(config.getDebezium().get("datetime.type"))) {
+            debeziumProperties.setProperty("datetime.format.timestamp.zone", serverTimeZone);
+        }
 
         config.getDebezium().forEach((key, value) -> {
             if (Asserts.isNotNullString(key) && Asserts.isNotNullString(value)) {
@@ -125,8 +132,29 @@ public class MysqlCDCBuilder extends AbstractCDCBuilder {
                 case "initial":
                     sourceBuilder.startupOptions(StartupOptions.initial());
                     break;
+                case "earliest-offset":
+                    sourceBuilder.startupOptions(StartupOptions.earliest());
+                    break;
                 case "latest-offset":
                     sourceBuilder.startupOptions(StartupOptions.latest());
+                    break;
+                case "specific-offset":
+                    if (Asserts.isAllNotNullString(scanStartupSpecificOffsetFile, scanStartupSpecificOffsetPos)) {
+                        sourceBuilder.startupOptions(StartupOptions.specificOffset(
+                                scanStartupSpecificOffsetFile, Long.valueOf(scanStartupSpecificOffsetPos)));
+                    } else if (Asserts.isNotNullString(scanStartupSpecificOffsetGtidSet)) {
+                        sourceBuilder.startupOptions(StartupOptions.specificOffset(scanStartupSpecificOffsetGtidSet));
+                    } else {
+                        throw new RuntimeException("No specific offset parameter specified.");
+                    }
+                    break;
+                case "timestamp":
+                    if (Asserts.isNotNullString(scanStartupTimestampMillis)) {
+                        sourceBuilder.startupOptions(
+                                StartupOptions.timestamp(Long.valueOf(scanStartupTimestampMillis)));
+                    } else {
+                        throw new RuntimeException("No timestamp parameter specified.");
+                    }
                     break;
                 default:
             }
@@ -187,16 +215,9 @@ public class MysqlCDCBuilder extends AbstractCDCBuilder {
 
     @Override
     public Map<String, String> parseMetaDataConfig() {
-        boolean tinyInt1isBit = !config.getJdbc().containsKey("tinyInt1isBit")
-                || "true".equalsIgnoreCase(config.getJdbc().get("tinyInt1isBit"));
-        boolean transformedBitIsBoolean = !config.getJdbc().containsKey("transformedBitIsBoolean")
-                || "true".equalsIgnoreCase(config.getJdbc().get("transformedBitIsBoolean"));
-        String url = String.format("jdbc:mysql://%s:%d/", config.getHostname(), config.getPort());
-        if (tinyInt1isBit && transformedBitIsBoolean) {
-            url += "?tinyInt1isBit=true";
-        } else {
-            url += "?tinyInt1isBit=false";
-        }
+        String url = String.format(
+                "jdbc:mysql://%s:%d/%s",
+                config.getHostname(), config.getPort(), composeJdbcProperties(config.getJdbc()));
         return parseMetaDataSingleConfig(url);
     }
 
@@ -222,6 +243,7 @@ public class MysqlCDCBuilder extends AbstractCDCBuilder {
                 config.getHostname(), config.getPort(), schema, composeJdbcProperties(config.getJdbc()));
     }
 
+    // Append jdbc properties, such as: ?tinyInt1isBit=true&useSSL=true
     private String composeJdbcProperties(Map<String, String> jdbcProperties) {
         if (jdbcProperties == null || jdbcProperties.isEmpty()) {
             return "";

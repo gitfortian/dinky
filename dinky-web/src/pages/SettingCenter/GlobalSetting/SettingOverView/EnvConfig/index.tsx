@@ -18,17 +18,13 @@
  */
 
 import GeneralConfig from '@/pages/SettingCenter/GlobalSetting/SettingOverView/GeneralConfig';
-import { BaseConfigProperties } from '@/types/SettingCenter/data';
+import { BaseConfigProperties, GLOBAL_SETTING_KEYS } from '@/types/SettingCenter/data.d';
 import { l } from '@/utils/intl';
-import { Tag } from 'antd';
+import { RadioChangeEvent, Tag } from 'antd';
 import React from 'react';
+import { GeneralComponentConfigProps } from '@/pages/SettingCenter/GlobalSetting/data.d';
 
-interface EnvConfigProps {
-  data: BaseConfigProperties[];
-  onSave: (data: BaseConfigProperties) => void;
-}
-
-export const EnvConfig = ({ data, onSave }: EnvConfigProps) => {
+export const EnvConfig = ({ data, onSave, auth }: GeneralComponentConfigProps) => {
   const [loading, setLoading] = React.useState(false);
 
   const onSaveHandler = async (data: BaseConfigProperties) => {
@@ -37,17 +33,31 @@ export const EnvConfig = ({ data, onSave }: EnvConfigProps) => {
     setLoading(false);
   };
 
+  const selectChange = async (e: RadioChangeEvent, entity: BaseConfigProperties) => {
+    const { value, name } = e.target;
+    await onSaveHandler({
+      hidden: entity.hidden,
+      name: entity.name,
+      example: entity.example,
+      frontType: entity.frontType,
+      key: name ?? '',
+      note: entity.note,
+      value: value.toString().toLocaleUpperCase()
+    });
+  };
+
   return (
     <>
-      {/*tooltip={l('sys.setting.dinky.tooltip')}*/}
       <GeneralConfig
         loading={loading}
         onSave={onSaveHandler}
+        auth={auth}
         tag={
           <>
             <Tag color={'error'}>{l('sys.setting.tag.system')}</Tag>
           </>
         }
+        selectChanges={selectChange}
         data={data}
       />
     </>

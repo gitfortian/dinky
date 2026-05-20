@@ -17,10 +17,10 @@
  *
  */
 
-import { JobRunningMsgType } from '@/pages/DataStudio/model';
 import { StopTwoTone } from '@ant-design/icons';
 import { Col, Modal, Progress, Row, Space } from 'antd';
 import React from 'react';
+import { JobRunningMsgType } from '@/pages/DataStudio/type';
 
 type JobRunningModalProps = {
   visible: boolean;
@@ -52,8 +52,8 @@ const JobRunningModal: React.FC<JobRunningModalProps> = (props) => {
                   ? value?.jobState === 'RUNNING'
                     ? 50
                     : value?.jobState === 'FINISHED'
-                    ? 100
-                    : 0
+                      ? 100
+                      : 0
                   : 0
               }
               status='active'

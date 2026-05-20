@@ -17,6 +17,7 @@
  *
  */
 
+import { AuthorizedObject, useAccess } from '@/hooks/useAccess';
 import { QueryParams } from '@/pages/RegCenter/DataSource/components/DataSourceDetail/RightTagsRouter/data';
 import GenSQL from '@/pages/RegCenter/DataSource/components/DataSourceDetail/RightTagsRouter/GenSQL';
 import SchemaDesc from '@/pages/RegCenter/DataSource/components/DataSourceDetail/RightTagsRouter/SchemaDesc';
@@ -24,38 +25,43 @@ import SQLConsole from '@/pages/RegCenter/DataSource/components/DataSourceDetail
 import SQLQuery from '@/pages/RegCenter/DataSource/components/DataSourceDetail/RightTagsRouter/SQLQuery';
 import { queryDataByParams } from '@/services/BusinessCrud';
 import { API_CONSTANTS } from '@/services/endpoints';
+import { PermissionConstants } from '@/types/Public/constants';
 import { DataSources } from '@/types/RegCenter/data';
 import { l } from '@/utils/intl';
-import { BookOutlined, ConsoleSqlOutlined, HighlightOutlined } from '@ant-design/icons';
+import {
+  BookOutlined,
+  ConsoleSqlOutlined,
+  HighlightOutlined,
+  SearchOutlined
+} from '@ant-design/icons';
 import { ProCardTabsProps } from '@ant-design/pro-card/es/typing';
 import { ProCard } from '@ant-design/pro-components';
 import { Space } from 'antd';
-import { SearchOutline } from 'antd-mobile-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useAsyncEffect } from 'ahooks';
 
 /**
  * props
  */
 type RightTagsRouterProps = {
-  tableInfo: Partial<DataSources.Table>;
   rightButtons?: React.ReactNode;
   queryParams: QueryParams;
   tagDisabled?: boolean;
+  className?: string;
 };
 
 const RightTagsRouter: React.FC<RightTagsRouterProps> = (props) => {
-  const { tableInfo, queryParams, tagDisabled = false, rightButtons } = props;
-  const [tableColumns, setTableColumns] = useState<Partial<DataSources.Column[]>>([]);
-  useEffect(() => {
+  const access = useAccess();
+
+  const { queryParams, tagDisabled = false, rightButtons, className } = props;
+  const [tableInfo, setTableInfo] = useState<Partial<DataSources.Table>>({});
+  useAsyncEffect(async () => {
     const fetchData = async () => {
-      const result = await queryDataByParams(
-        API_CONSTANTS.DATASOURCE_GET_COLUMNS_BY_TABLE,
-        queryParams
-      );
-      setTableColumns(result as DataSources.Column[]);
+      const result = await queryDataByParams(API_CONSTANTS.DATASOURCE_GET_TABLE, queryParams);
+      setTableInfo(result as DataSources.Table);
     };
     if (queryParams.id !== 0) {
-      fetchData();
+      await fetchData();
     }
   }, [queryParams]);
   // state
@@ -71,19 +77,21 @@ const RightTagsRouter: React.FC<RightTagsRouterProps> = (props) => {
           {l('rc.ds.detail.tag.desc')}
         </Space>
       ),
-      children: <SchemaDesc tableInfo={tableInfo} tableColumns={tableColumns} />,
-      disabled: tagDisabled
+      children: <SchemaDesc queryParams={queryParams} tableInfo={tableInfo} />,
+      disabled: tagDisabled,
+      auth: PermissionConstants.REGISTRATION_DATA_SOURCE_DETAIL_DESC
     },
     {
       key: 'query',
       label: (
         <Space>
-          <SearchOutline />
+          <SearchOutlined />
           {l('rc.ds.detail.tag.query')}
         </Space>
       ),
       children: <SQLQuery queryParams={queryParams} />,
-      disabled: tagDisabled
+      disabled: tagDisabled,
+      auth: PermissionConstants.REGISTRATION_DATA_SOURCE_DETAIL_QUERY
     },
     {
       key: 'gensql',
@@ -94,7 +102,8 @@ const RightTagsRouter: React.FC<RightTagsRouterProps> = (props) => {
         </Space>
       ),
       children: <GenSQL tagDisabled={tagDisabled} queryParams={queryParams} />,
-      disabled: tagDisabled
+      disabled: tagDisabled,
+      auth: PermissionConstants.REGISTRATION_DATA_SOURCE_DETAIL_GENSQL
     },
     {
       key: 'console',
@@ -105,7 +114,8 @@ const RightTagsRouter: React.FC<RightTagsRouterProps> = (props) => {
         </Space>
       ),
       disabled: true,
-      children: <SQLConsole />
+      children: <SQLConsole />,
+      auth: PermissionConstants.REGISTRATION_DATA_SOURCE_DETAIL_CONSOLE
     }
   ];
 
@@ -116,16 +126,19 @@ const RightTagsRouter: React.FC<RightTagsRouterProps> = (props) => {
     tabBarExtraContent: rightButtons,
     animated: true,
     onChange: (key: string) => setActiveKey(key),
-    items: tabList
+    items: tabList.filter((item) => AuthorizedObject({ path: item.auth, children: item, access }))
   };
 
   /**
    * render
    */
   return (
-    <>
-      <ProCard className={'schemaTree'} size='small' bordered tabs={{ ...restTabProps }} />
-    </>
+    <ProCard
+      className={'schemaTree ' + (className ?? '')}
+      size='small'
+      bordered
+      tabs={{ ...restTabProps }}
+    />
   );
 };
 

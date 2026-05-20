@@ -20,23 +20,23 @@
 package org.dinky.trans.pipeline;
 
 import org.dinky.executor.Executor;
-import org.dinky.gateway.enums.GatewayType;
 import org.dinky.trans.AbstractOperation;
 import org.dinky.trans.Operation;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.cdc.cli.parser.YamlPipelineDefinitionParser;
+import org.apache.flink.cdc.common.configuration.Configuration;
+import org.apache.flink.cdc.composer.PipelineComposer;
+import org.apache.flink.cdc.composer.definition.PipelineDef;
+import org.apache.flink.cdc.composer.flink.FlinkPipelineComposer;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableResultImpl;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
+import java.lang.reflect.Constructor;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.jetbrains.annotations.Nullable;
-
-import com.ververica.cdc.composer.PipelineComposer;
-import com.ververica.cdc.composer.definition.PipelineDef;
 
 /**
  * FlinkCDCPipelineOperation
@@ -89,30 +89,19 @@ public class FlinkCDCPipelineOperation extends AbstractOperation implements Oper
     @Override
     public TableResult execute(Executor executor) {
         String yamlText = getPipelineConfigure(statement);
-        com.ververica.cdc.common.configuration.Configuration globalPipelineConfig =
-                com.ververica.cdc.common.configuration.Configuration.fromMap(executor.getSetConfig());
-        // Parse pipeline definition file
-        YamlTextPipelineDefinitionParser pipelineDefinitionParser = new YamlTextPipelineDefinitionParser();
-        PipelineDef pipelineDef = null;
+        Configuration globalPipelineConfig = Configuration.fromMap(executor.getSetConfig());
         try {
-            pipelineDef = pipelineDefinitionParser.parse(yamlText, globalPipelineConfig);
+            // Parse pipeline definition file
+            YamlPipelineDefinitionParser pipelineDefinitionParser = new YamlPipelineDefinitionParser();
+            // Create composer
+            PipelineComposer composer = createComposer(executor);
+            PipelineDef pipelineDef = pipelineDefinitionParser.parse(yamlText, globalPipelineConfig);
+            // Compose pipeline
+            composer.compose(pipelineDef);
+            return TableResultImpl.TABLE_RESULT_OK;
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-
-        boolean useMiniCluster =
-                GatewayType.get(executor.getExecutorConfig().getType()).isLocalExecute();
-        Configuration configuration = Configuration.fromMap(executor.getSetConfig());
-        configuration.addAll(executor.getCustomTableEnvironment().getRootConfiguration());
-        List<Path> additionalJars = new ArrayList<>();
-        // Create composer
-        PipelineComposer composer = createComposer(useMiniCluster, configuration, additionalJars);
-
-        // Compose pipeline
-        DinkyFlinkPipelineExecution execution = (DinkyFlinkPipelineExecution) composer.compose(pipelineDef);
-        executor.setStreamExecutionEnvironment(execution.getEnv());
-
-        return null;
     }
 
     @Nullable
@@ -125,11 +114,16 @@ public class FlinkCDCPipelineOperation extends AbstractOperation implements Oper
         return "";
     }
 
-    public DinkyFlinkPipelineComposer createComposer(
-            boolean useMiniCluster, Configuration flinkConfig, List<Path> additionalJars) {
-        if (useMiniCluster) {
-            return DinkyFlinkPipelineComposer.ofMiniCluster();
+    public PipelineComposer createComposer(Executor executor) {
+        try {
+            Class<FlinkPipelineComposer> clazz = (Class<FlinkPipelineComposer>)
+                    Class.forName("org.apache.flink.cdc.composer.flink.FlinkPipelineComposer");
+            Constructor<FlinkPipelineComposer> constructor =
+                    clazz.getDeclaredConstructor(StreamExecutionEnvironment.class, boolean.class);
+            constructor.setAccessible(true);
+            return constructor.newInstance(executor.getStreamExecutionEnvironment(), false);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-        return DinkyFlinkPipelineComposer.ofRemoteCluster(flinkConfig, additionalJars);
     }
 }

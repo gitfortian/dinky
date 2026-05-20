@@ -21,6 +21,7 @@ package org.dinky.service;
 
 import org.dinky.data.model.Configuration;
 import org.dinky.data.model.SysConfig;
+import org.dinky.data.result.Result;
 import org.dinky.mybatis.service.ISuperService;
 
 import java.util.List;
@@ -41,9 +42,21 @@ public interface SysConfigService extends ISuperService<SysConfig> {
     Map<String, List<Configuration<?>>> getAll();
 
     /**
+     * Get one configuration by key.
+     *
+     * @return A map of string keys to lists of {@link Configuration} objects.
+     */
+    Configuration<Object> getOneConfigByKey(String key);
+
+    /**
      * Initialize system configurations.
      */
     void initSysConfig();
+
+    /**
+     * Initialize expression variables.
+     */
+    void initExpressionVariables();
 
     /**
      * Update system configurations by key-value pairs.
@@ -52,4 +65,18 @@ public interface SysConfigService extends ISuperService<SysConfig> {
      * @param value The new value of the configuration.
      */
     void updateSysConfigByKv(String key, String value);
+
+    /**
+     * Get needed configurations.
+     *
+     * @return A map of string keys to lists of {@link Configuration} objects.
+     */
+    Result<Map<String, Object>> getNeededCfg();
+
+    /**
+     * Set initial configurations.
+     *
+     * @param params The parameters for initializing configurations.
+     */
+    Result<Void> setInitConfig(Map<String, Object> params);
 }

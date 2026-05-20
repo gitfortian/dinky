@@ -29,9 +29,12 @@ import org.dinky.data.model.Table;
 import org.dinky.data.result.SqlExplainResult;
 import org.dinky.metadata.config.AbstractJdbcConfig;
 import org.dinky.metadata.config.DriverConfig;
+import org.dinky.metadata.convert.ITypeConvert;
+import org.dinky.metadata.enums.DriverType;
 import org.dinky.metadata.result.JdbcSelectResult;
 import org.dinky.utils.JsonUtils;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,19 +44,22 @@ import java.util.stream.Stream;
 
 import cn.hutool.core.text.StrFormatter;
 
-/**
- * Driver
- *
- * @since 2021/7/19 23:15
- */
 public interface Driver extends AutoCloseable {
 
     static Optional<Driver> get(String type) {
         Asserts.checkNotNull(type, "数据源Type配置不能为空");
         ServiceLoader<Driver> drivers = ServiceLoader.load(Driver.class);
-        for (Driver driver : drivers) {
-            if (driver.canHandle(type)) {
-                return Optional.of(driver);
+        Iterator<Driver> driversIterator = drivers.iterator();
+
+        // There may be an issue where the class can't be found, so the exception needs to be caught
+        while (driversIterator.hasNext()) {
+            try {
+                Driver driver = driversIterator.next();
+                if (driver.canHandle(type)) {
+                    return Optional.of(driver);
+                }
+            } catch (Throwable t) {
+                // Do nothing
             }
         }
         return Optional.empty();
@@ -110,25 +116,25 @@ public interface Driver extends AutoCloseable {
 
     static Driver build(String connector, String url, String username, String password) {
         String type = null;
-        if (Asserts.isEqualsIgnoreCase(connector, "doris")) {
-            type = "Doris";
+        if (Asserts.isContainsString(connector, "doris")) {
+            type = DriverType.DORIS.getValue();
         } else if (Asserts.isEqualsIgnoreCase(connector, "starrocks")) {
-            type = "StarRocks";
+            type = DriverType.STARROCKS.getValue();
         } else if (Asserts.isEqualsIgnoreCase(connector, "clickhouse")) {
-            type = "ClickHouse";
+            type = DriverType.CLICKHOUSE.getValue();
         } else if (Asserts.isEqualsIgnoreCase(connector, "jdbc")) {
             if (url.startsWith("jdbc:mysql")) {
-                type = "MySQL";
+                type = DriverType.MYSQL.getValue();
             } else if (url.startsWith("jdbc:postgresql")) {
-                type = "PostgreSql";
+                type = DriverType.POSTGRESQL.getValue();
             } else if (url.startsWith("jdbc:oracle")) {
-                type = "Oracle";
+                type = DriverType.ORACLE.getValue();
             } else if (url.startsWith("jdbc:sqlserver")) {
-                type = "SQLServer";
+                type = DriverType.SQLSERVER.getValue();
             } else if (url.startsWith("jdbc:phoenix")) {
-                type = "Phoenix";
+                type = DriverType.PHOENIX.getValue();
             } else if (url.startsWith("jdbc:pivotal")) {
-                type = "Greenplum";
+                type = DriverType.GREENPLUM.getValue();
             }
         }
 
@@ -140,7 +146,7 @@ public interface Driver extends AutoCloseable {
                 .username(username)
                 .password(password)
                 .build();
-        return build(connector, type, JsonUtils.toMap(config));
+        return buildWithOutPool(url, type, JsonUtils.toMap(config));
     }
 
     <T> Driver buildDriverConfig(String name, String type, T config);
@@ -160,6 +166,8 @@ public interface Driver extends AutoCloseable {
     @Override
     void close();
 
+    ITypeConvert getTypeConvert();
+
     List<Schema> listSchemas();
 
     boolean existSchema(String schemaName);
@@ -170,21 +178,19 @@ public interface Driver extends AutoCloseable {
 
     List<Table> listTables(String schemaName);
 
+    List<Table> listTables(String schemaName, String tableName);
+
     List<Column> listColumns(String schemaName, String tableName);
 
     List<Column> listColumnsSortByPK(String schemaName, String tableName);
 
     List<Schema> getSchemasAndTables();
 
-    List<Table> getTablesAndColumns(String schemaName);
-
     Table getTable(String schemaName, String tableName);
 
     boolean existTable(Table table);
 
     boolean createTable(Table table) throws Exception;
-
-    boolean generateCreateTable(Table table) throws Exception;
 
     boolean dropTable(Table table) throws Exception;
 
@@ -198,37 +204,25 @@ public interface Driver extends AutoCloseable {
 
     String getTruncateTableSql(Table table);
 
-    String generateCreateTableSql(Table table);
-
-    /*
-     * boolean insert(Table table, JsonNode data);
-     *
-     * boolean update(Table table, JsonNode data);
-     *
-     * boolean delete(Table table, JsonNode data);
-     *
-     * SelectResult select(String sql);
-     */
-
     boolean execute(String sql) throws Exception;
 
     int executeUpdate(String sql) throws Exception;
 
     JdbcSelectResult query(String sql, Integer limit);
 
-    StringBuilder genQueryOption(QueryData queryData);
+    JdbcSelectResult query(QueryData queryData);
+
+    long count(String schemaName, String tableName);
 
     JdbcSelectResult executeSql(String sql, Integer limit);
 
     List<SqlExplainResult> explain(String sql);
 
-    Map<String, String> getFlinkColumnTypeConversion();
-
     /**
      * 得到分割表
      *
      * @param tableRegList 表正则列表
-     * @param splitConfig 分库配置
+     * @param splitConfig  分库配置
      * @return {@link Set}<{@link Table}>
      */
     default Set<Table> getSplitTables(List<String> tableRegList, Map<String, String> splitConfig) {

@@ -19,12 +19,17 @@
 
 package org.dinky.job.handler;
 
+import static org.dinky.utils.JsonUtils.objectMapper;
+
 import org.dinky.api.FlinkAPI;
 import org.dinky.assertion.Asserts;
+import org.dinky.cluster.FlinkClusterInfo;
 import org.dinky.context.SpringContextUtils;
+import org.dinky.context.TenantContextHolder;
 import org.dinky.data.constant.FlinkRestResultConstant;
 import org.dinky.data.dto.ClusterConfigurationDTO;
 import org.dinky.data.dto.JobDataDto;
+import org.dinky.data.enums.GatewayType;
 import org.dinky.data.enums.JobStatus;
 import org.dinky.data.flink.backpressure.FlinkJobNodeBackPressure;
 import org.dinky.data.flink.checkpoint.CheckPointOverView;
@@ -33,27 +38,37 @@ import org.dinky.data.flink.config.FlinkJobConfigInfo;
 import org.dinky.data.flink.exceptions.FlinkJobExceptionsDetail;
 import org.dinky.data.flink.job.FlinkJobDetailInfo;
 import org.dinky.data.flink.watermark.FlinkJobNodeWaterMark;
+import org.dinky.data.model.ClusterInstance;
+import org.dinky.data.model.SystemConfiguration;
 import org.dinky.data.model.ext.JobInfoDetail;
+import org.dinky.data.model.job.History;
 import org.dinky.data.model.job.JobInstance;
 import org.dinky.gateway.Gateway;
 import org.dinky.gateway.config.GatewayConfig;
-import org.dinky.gateway.enums.GatewayType;
 import org.dinky.gateway.exception.NotSupportGetStatusException;
 import org.dinky.gateway.model.FlinkClusterConfig;
+import org.dinky.init.FlinkHistoryServer;
 import org.dinky.job.JobConfig;
+import org.dinky.service.ClusterInstanceService;
+import org.dinky.service.HistoryService;
 import org.dinky.service.JobHistoryService;
 import org.dinky.service.JobInstanceService;
+import org.dinky.service.TaskService;
 import org.dinky.utils.JsonUtils;
 import org.dinky.utils.TimeUtil;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.fastjson2.JSON;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.type.CollectionType;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
@@ -68,10 +83,16 @@ public class JobRefreshHandler {
 
     private static final JobInstanceService jobInstanceService;
     private static final JobHistoryService jobHistoryService;
+    private static final ClusterInstanceService clusterInstanceService;
+    private static final HistoryService historyService;
+    private static final TaskService taskService;
 
     static {
         jobInstanceService = SpringContextUtils.getBean("jobInstanceServiceImpl", JobInstanceService.class);
         jobHistoryService = SpringContextUtils.getBean("jobHistoryServiceImpl", JobHistoryService.class);
+        clusterInstanceService = SpringContextUtils.getBean("clusterInstanceServiceImpl", ClusterInstanceService.class);
+        historyService = SpringContextUtils.getBean("historyServiceImpl", HistoryService.class);
+        taskService = SpringContextUtils.getBean("taskServiceImpl", TaskService.class);
     }
 
     /**
@@ -85,6 +106,10 @@ public class JobRefreshHandler {
      * @return True if the job is done, false otherwise.
      */
     public static boolean refreshJob(JobInfoDetail jobInfoDetail, boolean needSave) {
+        if (Asserts.isNull(TenantContextHolder.get())) {
+            jobInstanceService.initTenantByJobInstanceId(
+                    jobInfoDetail.getInstance().getId());
+        }
         log.debug(
                 "Start to refresh job: {}->{}",
                 jobInfoDetail.getInstance().getId(),
@@ -100,6 +125,9 @@ public class JobRefreshHandler {
             jobInstanceService.updateById(jobInstance);
             return true;
         }
+
+        checkAndRefreshCluster(jobInfoDetail);
+
         // Update the value of JobData from the flink api while ignoring the null value to prevent
         // some other configuration from being overwritten
         BeanUtil.copyProperties(
@@ -111,18 +139,22 @@ public class JobRefreshHandler {
                 CopyOptions.create().ignoreNullValue());
 
         if (Asserts.isNull(jobDataDto.getJob()) || jobDataDto.isError()) {
-            // If the job fails to get it, the default Finish Time is the current time
-            jobInstance.setStatus(JobStatus.RECONNECTING.getValue());
-            jobInstance.setError(jobDataDto.getErrorMsg());
-            jobInfoDetail.getJobDataDto().setError(true);
-            jobInfoDetail.getJobDataDto().setErrorMsg(jobDataDto.getErrorMsg());
+            Optional<JobStatus> jobStatus = getJobStatus(jobInfoDetail);
+            if (jobStatus.isPresent() && JobStatus.isDone(jobStatus.get().getValue())) {
+                jobInstance.setStatus(jobStatus.get().getValue());
+            } else {
+                // If the job fails to get it, the default Finish Time is the current time
+                jobInstance.setStatus(JobStatus.RECONNECTING.getValue());
+                jobInstance.setError(jobDataDto.getErrorMsg());
+                jobInfoDetail.getJobDataDto().setError(true);
+                jobInfoDetail.getJobDataDto().setErrorMsg(jobDataDto.getErrorMsg());
+            }
             if (jobInstance.getFinishTime() == null || TimeUtil.localDateTimeToLong(jobInstance.getFinishTime()) < 1) {
                 jobInstance.setFinishTime(LocalDateTime.now());
             }
         } else {
             jobInfoDetail.setJobDataDto(jobDataDto);
             FlinkJobDetailInfo flinkJobDetailInfo = jobDataDto.getJob();
-            //            The YARN running status is no longer monitored
             jobInstance.setStatus(flinkJobDetailInfo.getState());
             jobInstance.setDuration(flinkJobDetailInfo.getDuration());
             jobInstance.setCreateTime(TimeUtil.toLocalDateTime(flinkJobDetailInfo.getStartTime()));
@@ -142,7 +174,9 @@ public class JobRefreshHandler {
 
         boolean isTransition = false;
 
-        if (JobStatus.isTransition(jobInstance.getStatus())) {
+        if (JobStatus.isTransition(
+                jobInstance.getStatus(),
+                Asserts.isNull(jobDataDto.getJob()) ? null : jobDataDto.getJob().getEndTime())) {
             Long finishTime = TimeUtil.localDateTimeToLong(jobInstance.getFinishTime());
             long duration = Duration.between(jobInstance.getFinishTime(), LocalDateTime.now())
                     .toMinutes();
@@ -168,13 +202,35 @@ public class JobRefreshHandler {
 
         if (!oldStatus.equals(jobInstance.getStatus()) || isDone || needSave) {
             log.debug("Dump JobInfo to database: {}->{}", jobInstance.getId(), jobInstance.getName());
-            jobInstanceService.updateById(jobInstance);
-            jobHistoryService.updateById(jobInfoDetail.getJobDataDto().toJobHistory());
+            if (jobInstance.getStatus().equals(JobStatus.UNKNOWN.getValue())
+                    || jobInstance.getStatus().equals(JobStatus.RECONNECTING.getValue())) {
+                JobInstance fromDb = jobInstanceService.getById(jobInstance.getId());
+                // If the job status is unknown and the job status in the database is not done, update the job status
+                // just prevent the task from being mistakenly updated to UNKNOWN
+                if (JobStatus.valueOf(fromDb.getStatus()).isDone()) {
+                    // if status is RECONNECTING, ignore it
+                    isDone = true;
+                } else {
+                    jobInstanceService.updateById(jobInstance);
+                    jobHistoryService.updateById(jobInfoDetail.getJobDataDto().toJobHistory());
+                }
+            } else {
+                jobInstanceService.updateById(jobInstance);
+                jobHistoryService.updateById(jobInfoDetail.getJobDataDto().toJobHistory());
+            }
         }
 
         if (isDone) {
-            log.debug("Job is done: {}->{}", jobInstance.getId(), jobInstance.getName());
-            handleJobDone(jobInfoDetail);
+            try {
+                log.debug("Job is done: {}->{}", jobInstance.getId(), jobInstance.getName());
+                // 检查是否需要自动重启
+                if (shouldAutoRestart(jobInstance, jobInfoDetail)) {
+                    tryAutoRestart(jobInstance, jobInfoDetail);
+                }
+                handleJobDone(jobInfoDetail);
+            } catch (Exception e) {
+                log.error("failed handel job done：", e);
+            }
         }
         return isDone;
     }
@@ -189,6 +245,13 @@ public class JobRefreshHandler {
      * @return {@link org.dinky.data.dto.JobDataDto}.
      */
     public static JobDataDto getJobData(Integer id, String jobManagerHost, String jobId) {
+        if (FlinkHistoryServer.HISTORY_JOBID_SET.contains(jobId)
+                && SystemConfiguration.getInstances().getUseFlinkHistoryServer().getValue()) {
+            jobManagerHost = "127.0.0.1:"
+                    + SystemConfiguration.getInstances()
+                            .getFlinkHistoryServerPort()
+                            .getValue();
+        }
         JobDataDto.JobDataDtoBuilder builder = JobDataDto.builder();
         FlinkAPI api = FlinkAPI.build(jobManagerHost);
         try {
@@ -206,25 +269,37 @@ public class JobRefreshHandler {
             api.getVertices(jobId).forEach(vertex -> {
                 flinkJobDetailInfo.getPlan().getNodes().forEach(planNode -> {
                     if (planNode.getId().equals(vertex)) {
-                        planNode.setWatermark(
-                                JsonUtils.toList(api.getWatermark(jobId, vertex), FlinkJobNodeWaterMark.class));
+                        try {
+                            CollectionType listType = objectMapper
+                                    .getTypeFactory()
+                                    .constructCollectionType(ArrayList.class, FlinkJobNodeWaterMark.class);
+                            List<FlinkJobNodeWaterMark> watermark =
+                                    objectMapper.readValue(api.getWatermark(jobId, vertex), listType);
+                            planNode.setWatermark(watermark);
+                        } catch (Exception ignored) {
+                        }
                         planNode.setBackpressure(JsonUtils.toJavaBean(
                                 api.getBackPressure(jobId, vertex), FlinkJobNodeBackPressure.class));
                     }
                 });
             });
-
+            JsonNode checkPoints = api.getCheckPoints(jobId);
+            if (checkPoints.findParent("errors") == null) {
+                builder.checkpoints(JsonUtils.parseObject(checkPoints.toString(), CheckPointOverView.class));
+            }
+            JsonNode checkpointConfigInfo = api.getCheckPointsConfig(jobId);
+            if (checkpointConfigInfo.findParent("errors") == null) {
+                builder.checkpointsConfig(
+                        JsonUtils.parseObject(checkpointConfigInfo.toString(), CheckpointConfigInfo.class));
+            }
             return builder.id(id)
-                    .checkpoints(JsonUtils.parseObject(api.getCheckPoints(jobId).toString(), CheckPointOverView.class))
-                    .checkpointsConfig(JsonUtils.parseObject(
-                            api.getCheckPointsConfig(jobId).toString(), CheckpointConfigInfo.class))
                     .exceptions(
                             JsonUtils.parseObject(api.getException(jobId).toString(), FlinkJobExceptionsDetail.class))
                     .job(flinkJobDetailInfo)
                     .config(jobConfigInfo)
                     .build();
         } catch (Exception e) {
-            log.error("Connect {} failed,{}", jobManagerHost, e.getMessage());
+            log.warn("Connect {} failed,{}", jobManagerHost, e.getMessage());
             return builder.id(id).error(true).errorMsg(e.getMessage()).build();
         }
     }
@@ -235,11 +310,13 @@ public class JobRefreshHandler {
      * @param jobInfoDetail The job info detail.
      * @return The job status.
      */
-    private static JobStatus getJobStatus(JobInfoDetail jobInfoDetail) {
+    private static Optional<JobStatus> getJobStatus(JobInfoDetail jobInfoDetail) {
 
         ClusterConfigurationDTO clusterCfg = jobInfoDetail.getClusterConfiguration();
-
-        if (!Asserts.isNull(clusterCfg)) {
+        ClusterInstance clusterInstance = jobInfoDetail.getClusterInstance();
+        if (!Asserts.isNull(clusterCfg)
+                && (GatewayType.YARN_PER_JOB.getLongValue().equals(clusterInstance.getType())
+                        || GatewayType.YARN_APPLICATION.getLongValue().equals(clusterInstance.getType()))) {
             try {
                 String appId = jobInfoDetail.getClusterInstance().getName();
 
@@ -250,15 +327,13 @@ public class JobRefreshHandler {
                         .setJobName(jobInfoDetail.getInstance().getName());
 
                 Gateway gateway = Gateway.build(gatewayConfig);
-                return gateway.getJobStatusById(appId);
+                return Optional.of(gateway.getJobStatusById(appId));
             } catch (NotSupportGetStatusException ignored) {
                 // if the gateway does not support get status, then use the api to get job status
                 // ignore to do something here
             }
         }
-        JobDataDto jobDataDto = jobInfoDetail.getJobDataDto();
-        String status = jobDataDto.getJob().getState();
-        return JobStatus.get(status);
+        return Optional.empty();
     }
 
     /**
@@ -278,6 +353,138 @@ public class JobRefreshHandler {
             jobConfig.getGatewayConfig().setType(GatewayType.get(clusterType));
             jobConfig.getGatewayConfig().getFlinkConfig().setJobName(jobInstance.getName());
             Gateway.build(jobConfig.getGatewayConfig()).onJobFinishCallback(jobInstance.getStatus());
+        }
+    }
+
+    /**
+     * Check if the job should be auto-restarted.
+     *
+     * @param jobInstance The job instance.
+     * @param jobInfoDetail The job info detail.
+     * @return True if the job should be auto-restarted, false otherwise.
+     */
+    private static boolean shouldAutoRestart(JobInstance jobInstance, JobInfoDetail jobInfoDetail) {
+        String status = jobInstance.getStatus();
+        // 只对FAILED和UNKNOWN状态进行自动重启
+        if (!JobStatus.FAILED.getValue().equals(status)
+                && !JobStatus.UNKNOWN.getValue().equals(status)) {
+            return false;
+        }
+
+        // 检查任务配置中是否启用了自动重启
+        try {
+            History history = jobInfoDetail.getHistory();
+            if (Asserts.isNull(history) || Asserts.isNull(history.getConfigJson())) {
+                return false;
+            }
+
+            JobConfig jobConfig = history.getConfigJson();
+            Boolean autoRestart = jobConfig.getAutoRestart();
+            return Boolean.TRUE.equals(autoRestart);
+        } catch (Exception e) {
+            log.warn("Failed to check auto restart config for job {}: {}", jobInstance.getId(), e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Try to auto-restart the job from the latest checkpoint.
+     *
+     * @param jobInstance The job instance.
+     * @param jobInfoDetail The job info detail.
+     */
+    private static void tryAutoRestart(JobInstance jobInstance, JobInfoDetail jobInfoDetail) {
+        if (Asserts.isNull(jobInstance.getTaskId())) {
+            log.warn("Cannot auto restart job {}: taskId is null", jobInstance.getId());
+            return;
+        }
+
+        try {
+            // 获取最新的checkpoint路径
+            String checkpointPath = getLatestCheckpointPath(jobInfoDetail.getJobDataDto());
+            log.info("Auto restarting job {} from checkpoint: {}", jobInstance.getId(), checkpointPath);
+            taskService.restartTask(jobInstance.getTaskId(), checkpointPath);
+            log.info("Auto restart job {} triggered successfully", jobInstance.getId());
+        } catch (Exception e) {
+            log.error("Failed to auto restart job {}: {}", jobInstance.getId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Get the latest checkpoint path from JobDataDto.
+     *
+     * @param jobDataDto The job data DTO.
+     * @return The latest checkpoint path, or null if not found.
+     */
+    private static String getLatestCheckpointPath(JobDataDto jobDataDto) {
+        if (Asserts.isNull(jobDataDto) || Asserts.isNull(jobDataDto.getCheckpoints())) {
+            return null;
+        }
+
+        CheckPointOverView checkpoints = jobDataDto.getCheckpoints();
+        CheckPointOverView.LatestCheckpoints latestCheckpoints = checkpoints.getLatestCheckpoints();
+        if (Asserts.isNull(latestCheckpoints)) {
+            return null;
+        }
+
+        // 优先使用completed checkpoint
+        CheckPointOverView.CompletedCheckpointStatistics completedCheckpoint =
+                latestCheckpoints.getCompletedCheckpointStatistics();
+        if (Asserts.isNotNull(completedCheckpoint) && Asserts.isNotNullString(completedCheckpoint.getExternalPath())) {
+            return completedCheckpoint.getExternalPath();
+        }
+
+        // 如果没有completed checkpoint，尝试使用savepoint
+        CheckPointOverView.CompletedCheckpointStatistics savepointStatistics =
+                latestCheckpoints.getSavepointStatistics();
+        if (Asserts.isNotNull(savepointStatistics) && Asserts.isNotNullString(savepointStatistics.getExternalPath())) {
+            return savepointStatistics.getExternalPath();
+        }
+
+        return null;
+    }
+
+    /**
+     * In a YARN cluster with HA mode enabled,
+     * if the jobManagerHost cannot be connected,
+     * attempt to retrieve the latest address of the jobManagerHost from ZK
+     *
+     * @param jobInfoDetail The job info detail.
+     * @return The job status.
+     */
+    private static void checkAndRefreshCluster(JobInfoDetail jobInfoDetail) {
+        if (!GatewayType.isDeployYarnCluster(jobInfoDetail.getClusterInstance().getType())) {
+            return;
+        }
+
+        FlinkClusterInfo flinkClusterInfo = clusterInstanceService.checkHeartBeat(
+                jobInfoDetail.getClusterInstance().getHosts(),
+                jobInfoDetail.getClusterInstance().getJobManagerHost());
+        if (!flinkClusterInfo.isEffective()) {
+            ClusterConfigurationDTO clusterCfg = jobInfoDetail.getClusterConfiguration();
+            ClusterInstance clusterInstance = jobInfoDetail.getClusterInstance();
+            if (!Asserts.isNull(clusterCfg)) {
+                String appId = jobInfoDetail.getClusterInstance().getName();
+
+                GatewayConfig gatewayConfig = GatewayConfig.build(clusterCfg.getConfig());
+                gatewayConfig.getClusterConfig().setAppId(appId);
+                gatewayConfig
+                        .getFlinkConfig()
+                        .setJobName(jobInfoDetail.getInstance().getName());
+
+                Gateway gateway = Gateway.build(gatewayConfig);
+                String latestJobManageHost = gateway.getLatestJobManageHost(appId, clusterInstance.getJobManagerHost());
+
+                if (Asserts.isNotNull(latestJobManageHost)) {
+                    clusterInstance.setHosts(latestJobManageHost);
+                    clusterInstance.setJobManagerHost(latestJobManageHost);
+                    clusterInstanceService.updateById(clusterInstance);
+                    if (Asserts.isNotNull(jobInfoDetail.getHistory())) {
+                        jobInfoDetail.getHistory().setJobManagerAddress(latestJobManageHost);
+                        historyService.updateById(jobInfoDetail.getHistory());
+                    }
+                }
+            }
         }
     }
 }

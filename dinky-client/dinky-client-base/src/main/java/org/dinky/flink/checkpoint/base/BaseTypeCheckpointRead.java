@@ -22,6 +22,7 @@ package org.dinky.flink.checkpoint.base;
 import org.dinky.data.model.CheckPointReadTable;
 import org.dinky.flink.checkpoint.BaseCheckpointRead;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.PartitionableListState;
@@ -36,7 +37,9 @@ import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.json.JSONObject;
 
 public class BaseTypeCheckpointRead extends BaseCheckpointRead {
+    private static final ExecutionConfig EXECUTION_CONFIG = new ExecutionConfig();
 
+    @Override
     public Optional<CheckPointReadTable> create(PartitionableListState<?> partitionableListState) {
         List<JSONObject> data = CollUtil.newArrayList(partitionableListState.get()).stream()
                 .map(x -> {
@@ -56,7 +59,7 @@ public class BaseTypeCheckpointRead extends BaseCheckpointRead {
         Map<Class<?>, BasicTypeInfo<?>> types = (Map<Class<?>, BasicTypeInfo<?>>)
                 ReflectUtil.getStaticFieldValue(ReflectUtil.getField(BasicTypeInfo.class, "TYPES"));
         for (Map.Entry<Class<?>, BasicTypeInfo<?>> entry : types.entrySet()) {
-            TypeSerializer<?> serializer = entry.getValue().createSerializer(null);
+            TypeSerializer<?> serializer = entry.getValue().createSerializer(EXECUTION_CONFIG);
             boolean equals = getArrayListSerializer(partitionableListState)
                     .getElementSerializer()
                     .getClass()
@@ -68,6 +71,7 @@ public class BaseTypeCheckpointRead extends BaseCheckpointRead {
         return null;
     }
 
+    @Override
     public boolean isSourceCkp(PartitionableListState<?> partitionableListState) {
         TypeSerializer<?> typeSerializer = getTypeSerializer(partitionableListState);
         return typeSerializer != null;

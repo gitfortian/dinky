@@ -19,6 +19,7 @@
 
 import {
   addOrUpdateData,
+  download,
   getData,
   getDataByRequestBody,
   getInfoById,
@@ -26,6 +27,7 @@ import {
   putData,
   putDataJson,
   removeById,
+  removeData,
   updateDataByParams
 } from '@/services/api';
 import { METHOD_CONSTANTS, RESPONSE_CODE } from '@/services/constants';
@@ -131,12 +133,41 @@ export const handleRemoveById = async (url: string, id: number, afterCallBack?: 
 };
 
 /**
+ * delete by params
+ * @param url
+ * @param params
+ * @param title
+ * @param afterCallBack
+ */
+export const handleDeleteOperation = async (
+  url: string,
+  params: any,
+  title: string,
+  afterCallBack?: () => void
+) => {
+  await LoadingMessageAsync(l('app.request.running') + title);
+  try {
+    const { code, msg } = await removeData(url, { ...params });
+    if (code === RESPONSE_CODE.SUCCESS) {
+      await SuccessMessage(msg);
+      afterCallBack?.();
+      return true;
+    } else {
+      await WarningMessage(msg);
+    }
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+/**
  * update enabled status
  * @param url
  * @param params
  */
 export const updateDataByParam = async (url: string, params: any) => {
-  await LoadingMessageAsync(l('app.request.update'));
+  await LoadingMessageAsync(l('app.request.running') + l('app.request.update'));
   try {
     const { code, msg } = await updateDataByParams(url, { ...params });
     if (code === RESPONSE_CODE.SUCCESS) {
@@ -177,6 +208,7 @@ export const handleOption = async (
   afterCallBack?: () => void
 ) => {
   await LoadingMessageAsync(l('app.request.running') + title);
+
   try {
     const result = await postAll(url, param);
     if (result.code === RESPONSE_CODE.SUCCESS) {
@@ -188,6 +220,15 @@ export const handleOption = async (
     return undefined;
   } catch (error) {
     return undefined;
+  }
+};
+
+export const handleDownloadOption = async (url: string, title: string, param: any) => {
+  await LoadingMessageAsync(l('app.request.running') + title);
+  try {
+    await download(url, param);
+  } catch (error) {
+    WarningMessage(l('app.request.download.failed'));
   }
 };
 
@@ -248,8 +289,8 @@ export const handlePutData = async (url: string, fields: any) => {
 };
 
 export const handlePutDataJson = async (url: string, fields: any) => {
-  const tipsTitle = fields?.id ? l('app.request.update') : l('app.request.add');
-  await LoadingMessageAsync(l('app.request.running') + tipsTitle);
+  // const tipsTitle = fields?.id ? l('app.request.update') : l('app.request.add');
+  // await LoadingMessageAsync(l('app.request.running') + tipsTitle);
   try {
     const { code, msg } = await putDataJson(url, { ...fields });
     if (code === RESPONSE_CODE.SUCCESS) {
